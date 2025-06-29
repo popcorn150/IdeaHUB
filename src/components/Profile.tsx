@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { Navigate, useSearchParams } from 'react-router-dom'
-import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown } from 'lucide-react'
+import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw } from 'lucide-react'
 import type { Idea, User } from '../lib/types'
 
 interface IdeaWithMintedUser extends Idea {
@@ -17,6 +17,7 @@ export function Profile() {
   const [loading, setLoading] = useState(true)
   const [editingProfile, setEditingProfile] = useState(false)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [profileData, setProfileData] = useState({
     username: '',
     bio: '',
@@ -47,15 +48,20 @@ export function Profile() {
     
     if (success === 'true') {
       setShowSuccessMessage(true)
-      // Refresh profile to get updated premium status
-      setTimeout(() => {
-        refreshProfile()
-      }, 1000)
+      // Refresh profile multiple times to ensure we get the updated status
+      const refreshInterval = setInterval(async () => {
+        await refreshProfile()
+      }, 2000)
       
-      // Hide success message after 5 seconds
+      // Stop refreshing after 30 seconds
+      setTimeout(() => {
+        clearInterval(refreshInterval)
+      }, 30000)
+      
+      // Hide success message after 10 seconds
       setTimeout(() => {
         setShowSuccessMessage(false)
-      }, 5000)
+      }, 10000)
     }
   }, [searchParams, refreshProfile])
 
@@ -118,6 +124,49 @@ export function Profile() {
     }
   }
 
+  // Manual refresh function for debugging
+  async function handleManualRefresh() {
+    setRefreshing(true)
+    try {
+      await refreshProfile()
+      
+      // Also check the database directly
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('is_premium')
+        .eq('id', user.id)
+        .single()
+      
+      if (error) {
+        console.error('Error checking premium status:', error)
+      } else {
+        console.log('Current premium status in database:', userData.is_premium)
+      }
+    } catch (error) {
+      console.error('Error refreshing profile:', error)
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  // Temporary function to manually set premium status for testing
+  async function togglePremiumStatus() {
+    try {
+      const newStatus = !profile?.is_premium
+      const { error } = await supabase
+        .from('users')
+        .update({ is_premium: newStatus })
+        .eq('id', user.id)
+
+      if (error) throw error
+      
+      console.log('Manually updated premium status to:', newStatus)
+      await refreshProfile()
+    } catch (error) {
+      console.error('Error updating premium status:', error)
+    }
+  }
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -153,8 +202,39 @@ export function Profile() {
           <p className="text-green-300/80 text-sm mt-1">
             Welcome to Idea-HUB Pro! Your premium features are now active.
           </p>
+          <p className="text-green-300/60 text-xs mt-2">
+            If you don't see premium features yet, please wait a moment for the system to update.
+          </p>
         </div>
       )}
+
+      {/* Debug Panel - Remove this in production */}
+      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-yellow-400 font-medium">Debug Panel</h3>
+            <p className="text-yellow-300/80 text-sm">
+              Premium Status: {profile?.is_premium ? 'TRUE (Premium)' : 'FALSE (Free)'}
+            </p>
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={handleManualRefresh}
+              disabled={refreshing}
+              className="flex items-center space-x-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 px-3 py-2 rounded-lg transition-all duration-300 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+            <button
+              onClick={togglePremiumStatus}
+              className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 px-3 py-2 rounded-lg transition-all duration-300"
+            >
+              Toggle Premium
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Profile Header */}
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-8 mb-8">
