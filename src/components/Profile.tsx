@@ -4,6 +4,7 @@ import { useToast } from '../contexts/ToastContext'
 import { supabase } from '../lib/supabase'
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw, AlertCircle, Camera, Upload } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import type { Idea, User } from '../lib/types'
 
 interface IdeaWithMintedUser extends Idea {
@@ -550,7 +551,6 @@ export function Profile() {
                         key={index}
                         className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
                       >
-                
                         <Tag className="w-3 h-3 mr-1" />
                         {tag}
                       </span>
@@ -588,13 +588,13 @@ export function Profile() {
             <div className="bg-gray-800/50 rounded-xl p-8">
               <h3 className="text-xl font-semibold text-gray-300 mb-2">No ideas yet</h3>
               <p className="text-gray-400 mb-4">Start sharing your innovative ideas with the world!</p>
-              <a
-                href="/upload"
+              <Link
+                to="/upload"
                 className="inline-flex items-center space-x-2 bg-gradient-to-r from-cyan-500 to-purple-600 text-white px-6 py-3 rounded-lg hover:shadow-lg hover:shadow-cyan-400/25 transition-all duration-300"
               >
                 <Star className="w-4 h-4" />
                 <span>Upload Your First Idea</span>
-              </a>
+              </Link>
             </div>
           </div>
         )}
