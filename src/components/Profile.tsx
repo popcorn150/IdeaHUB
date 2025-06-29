@@ -21,12 +21,12 @@ export function Profile() {
   const [editingProfile, setEditingProfile] = useState(false)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [webhookStatus, setWebhookStatus] = useState<'checking' | 'working' | 'failed' | null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [profileData, setProfileData] = useState({
     username: '',
     bio: '',
     wallet_address: '',
-    avatar_url: '',
-    role: 'creator' as 'creator' | 'investor'
+    avatar_url: ''
   })
 
   useEffect(() => {
@@ -35,8 +35,7 @@ export function Profile() {
         username: profile.username || '',
         bio: profile.bio || '',
         wallet_address: profile.wallet_address || '',
-        avatar_url: profile.avatar_url || '',
-        role: profile.role || 'creator'
+        avatar_url: profile.avatar_url || ''
       })
     }
   }, [profile])
@@ -168,11 +167,63 @@ export function Profile() {
     }
   }
 
+  async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select an image file', 'error')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('File size must be less than 5MB', 'error')
+      return
+    }
+
+    setUploadingAvatar(true)
+    try {
+      // Create a unique filename
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`
+      
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (error) throw error
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName)
+
+      setProfileData({ ...profileData, avatar_url: publicUrl })
+      showToast('Avatar uploaded successfully!', 'success')
+    } catch (error) {
+      console.error('Error uploading avatar:', error)
+      showToast('Failed to upload avatar. Please try again.', 'error')
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
+
   async function updateProfile() {
     try {
       const { error } = await supabase
         .from('users')
-        .update(profileData)
+        .update({
+          username: profileData.username,
+          bio: profileData.bio,
+          wallet_address: profileData.wallet_address,
+          avatar_url: profileData.avatar_url
+        })
         .eq('id', user.id)
 
       if (error) throw error
@@ -278,17 +329,23 @@ export function Profile() {
                 </div>
               )}
               {editingProfile && (
-                <button
-                  onClick={() => {
-                    const url = prompt('Enter avatar image URL:')
-                    if (url) {
-                      setProfileData({ ...profileData, avatar_url: url })
-                    }
-                  }}
-                  className="absolute -bottom-1 -right-1 bg-cyan-500 rounded-full p-1 hover:bg-cyan-600 transition-colors duration-300"
-                >
-                  <Camera className="w-3 h-3 text-white" />
-                </button>
+                <div className="absolute -bottom-1 -right-1">
+                  <label className="bg-cyan-500 rounded-full p-1 hover:bg-cyan-600 transition-colors duration-300 cursor-pointer">
+                    <Camera className="w-3 h-3 text-white" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      disabled={uploadingAvatar}
+                    />
+                  </label>
+                  {uploadingAvatar && (
+                    <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
             <div>
@@ -315,14 +372,6 @@ export function Profile() {
                     value={profileData.wallet_address}
                     onChange={(e) => setProfileData({ ...profileData, wallet_address: e.target.value })}
                   />
-                  <select
-                    value={profileData.role}
-                    onChange={(e) => setProfileData({ ...profileData, role: e.target.value as 'creator' | 'investor' })}
-                    className="bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-cyan-500 focus:outline-none w-full"
-                  >
-                    <option value="creator">Creator</option>
-                    <option value="investor">Investor</option>
-                  </select>
                   <div className="flex space-x-2">
                     <button
                       onClick={updateProfile}
