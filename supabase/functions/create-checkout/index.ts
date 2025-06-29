@@ -13,7 +13,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+    const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY')
+    
+    if (!stripeSecretKey) {
+      throw new Error('STRIPE_SECRET_KEY environment variable is not set')
+    }
+
+    // Check if we're using test mode keys
+    const isTestMode = stripeSecretKey.startsWith('sk_test_')
+    
+    const stripe = new Stripe(stripeSecretKey, {
       apiVersion: '2023-10-16',
     })
 
@@ -26,6 +35,15 @@ Deno.serve(async (req) => {
 
     if (!priceId || !userId) {
       throw new Error('Missing required parameters')
+    }
+
+    // Validate price ID format matches key mode
+    const isPriceIdTest = priceId.includes('test') || priceId.startsWith('price_test_')
+    
+    if (isTestMode && !isPriceIdTest && !priceId.startsWith('price_')) {
+      console.warn(`Using test mode key with price ID: ${priceId}`)
+    } else if (!isTestMode && isPriceIdTest) {
+      throw new Error('Cannot use test price IDs with live mode keys. Please use test mode Stripe keys for development.')
     }
 
     // Get or create Stripe customer
@@ -92,8 +110,18 @@ Deno.serve(async (req) => {
     )
   } catch (error) {
     console.error('Error creating checkout session:', error)
+    
+    // Provide more specific error messages for common issues
+    let errorMessage = error.message
+    
+    if (error.message.includes('No such price') && error.message.includes('live mode key was used')) {
+      errorMessage = 'Stripe configuration error: You are using live mode keys with test mode price IDs. Please configure test mode keys in your Supabase Edge Function environment variables.'
+    } else if (error.message.includes('No such price')) {
+      errorMessage = 'The specified price ID was not found in Stripe. Please check your price configuration.'
+    }
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,

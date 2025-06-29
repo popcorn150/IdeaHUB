@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, Check, Crown, Zap, Infinity } from 'lucide-react'
+import { X, Check, Crown, Zap, Infinity, AlertTriangle } from 'lucide-react'
 import { STRIPE_CONFIG } from '../lib/stripe-config'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -11,11 +11,14 @@ interface PricingModalProps {
 export function PricingModal({ onClose }: PricingModalProps) {
   const { user } = useAuth()
   const [loading, setLoading] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubscribe = async (planKey: keyof typeof STRIPE_CONFIG.products) => {
     if (!user) return
 
     setLoading(planKey)
+    setError(null)
+    
     try {
       // Create Stripe checkout session
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
@@ -31,15 +34,18 @@ export function PricingModal({ onClose }: PricingModalProps) {
         })
       })
 
-      const { url, error } = await response.json()
+      const data = await response.json()
       
-      if (error) throw new Error(error)
-      if (url) {
-        window.location.href = url
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Failed to create checkout session')
+      }
+      
+      if (data.url) {
+        window.location.href = data.url
       }
     } catch (error) {
       console.error('Error creating checkout session:', error)
-      alert('Failed to start checkout. Please try again.')
+      setError(error instanceof Error ? error.message : 'Failed to start checkout. Please try again.')
     } finally {
       setLoading(null)
     }
@@ -87,6 +93,22 @@ export function PricingModal({ onClose }: PricingModalProps) {
               <X className="w-6 h-6" />
             </button>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+                <span className="text-red-400 font-medium">Payment Error</span>
+              </div>
+              <p className="text-red-300/80 text-sm mt-1">{error}</p>
+              {error.includes('live mode key') && (
+                <p className="text-red-300/60 text-xs mt-2">
+                  This is a configuration issue. Please contact support or try again later.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Pricing Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
