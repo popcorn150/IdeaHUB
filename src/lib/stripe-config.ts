@@ -2,7 +2,7 @@ export const STRIPE_CONFIG = {
   publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!,
   products: {
     monthly: {
-      priceId: import.meta.env.STRIPE_MONTHLY_PRICE_ID || 'price_monthly_test',
+      priceId: import.meta.env.VITE_STRIPE_MONTHLY_PRICE_ID || 'price_monthly_test',
       name: 'Monthly Pro',
       price: '$10',
       interval: 'month',
@@ -15,7 +15,7 @@ export const STRIPE_CONFIG = {
       ]
     },
     quarterly: {
-      priceId: import.meta.env.STRIPE_QUARTERLY_PRICE_ID || 'price_quarterly_test',
+      priceId: import.meta.env.VITE_STRIPE_QUARTERLY_PRICE_ID || 'price_quarterly_test',
       name: 'Quarterly Pro',
       price: '$25',
       interval: '3 months',
@@ -29,7 +29,7 @@ export const STRIPE_CONFIG = {
       ]
     },
     lifetime: {
-      priceId: import.meta.env.STRIPE_LIFETIME_PRICE_ID || 'price_lifetime_test',
+      priceId: import.meta.env.VITE_STRIPE_LIFETIME_PRICE_ID || 'price_lifetime_test',
       name: 'Lifetime Pro',
       price: '$99',
       interval: 'lifetime',
