@@ -61,13 +61,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function fetchProfile(userId: string) {
     try {
-      const { data, error } = await supabase
+      const { data: profileData, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', userId)
-        .single()
+        .maybeSingle()
 
-      if (error && error.code === 'PGRST116') {
+      if (error) {
+        console.error('Error fetching profile:', error)
+        setLoading(false)
+        return
+      }
+
+      if (profileData === null) {
         // Profile doesn't exist, create it
         const { data: userData } = await supabase.auth.getUser()
         if (userData.user) {
@@ -88,11 +94,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setShowRoleSelector(true)
           }
         }
-      } else if (!error) {
-        setProfile(data)
+      } else {
+        setProfile(profileData)
         
         // Show role selector if user doesn't have a role set
-        if (!data.role) {
+        if (!profileData.role) {
           setShowRoleSelector(true)
         }
       }
