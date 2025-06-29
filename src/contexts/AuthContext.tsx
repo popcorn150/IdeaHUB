@@ -135,11 +135,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
-    
-    // Redirect to landing page after logout
-    window.location.href = '/'
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        // Check if the error is related to session not found or missing
+        if (error.message?.includes('session_not_found') || 
+            error.message?.includes('Auth session missing') ||
+            error.message?.includes('Session from session_id claim in JWT does not exist')) {
+          console.warn('Session already expired or invalid, proceeding with logout')
+        } else {
+          // Re-throw other types of errors
+          throw error
+        }
+      }
+    } catch (error) {
+      console.error('Error during sign out:', error)
+      // Don't re-throw the error to prevent unhandled exceptions
+    } finally {
+      // Always redirect to landing page regardless of signOut outcome
+      window.location.href = '/'
+    }
   }
 
   return (
