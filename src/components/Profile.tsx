@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
-import { Navigate } from 'react-router-dom'
-import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart } from 'lucide-react'
+import { Navigate, useSearchParams } from 'react-router-dom'
+import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown } from 'lucide-react'
 import type { Idea, User } from '../lib/types'
 
 interface IdeaWithMintedUser extends Idea {
@@ -10,11 +10,13 @@ interface IdeaWithMintedUser extends Idea {
 }
 
 export function Profile() {
-  const { user, profile } = useAuth()
+  const { user, profile, refreshProfile } = useAuth()
+  const [searchParams] = useSearchParams()
   const [ideas, setIdeas] = useState<IdeaWithMintedUser[]>([])
   const [ownedIdeas, setOwnedIdeas] = useState<IdeaWithMintedUser[]>([])
   const [loading, setLoading] = useState(true)
   const [editingProfile, setEditingProfile] = useState(false)
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [profileData, setProfileData] = useState({
     username: '',
     bio: '',
@@ -37,6 +39,25 @@ export function Profile() {
       fetchOwnedIdeas()
     }
   }, [user])
+
+  // Check for payment success
+  useEffect(() => {
+    const success = searchParams.get('success')
+    const canceled = searchParams.get('canceled')
+    
+    if (success === 'true') {
+      setShowSuccessMessage(true)
+      // Refresh profile to get updated premium status
+      setTimeout(() => {
+        refreshProfile()
+      }, 1000)
+      
+      // Hide success message after 5 seconds
+      setTimeout(() => {
+        setShowSuccessMessage(false)
+      }, 5000)
+    }
+  }, [searchParams, refreshProfile])
 
   if (!user) {
     return <Navigate to="/auth" replace />
@@ -91,6 +112,7 @@ export function Profile() {
 
       if (error) throw error
       setEditingProfile(false)
+      await refreshProfile()
     } catch (error) {
       console.error('Error updating profile:', error)
     }
@@ -121,12 +143,32 @@ export function Profile() {
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Payment Success Message */}
+      {showSuccessMessage && (
+        <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 mb-6">
+          <div className="flex items-center space-x-2">
+            <CheckCircle className="w-5 h-5 text-green-400" />
+            <span className="text-green-400 font-medium">Payment Successful!</span>
+          </div>
+          <p className="text-green-300/80 text-sm mt-1">
+            Welcome to Idea-HUB Pro! Your premium features are now active.
+          </p>
+        </div>
+      )}
+
       {/* Profile Header */}
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-8 mb-8">
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-6">
-            <div className="w-20 h-20 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full flex items-center justify-center text-2xl text-white font-bold">
-              {profile?.username?.[0]?.toUpperCase() || 'U'}
+            <div className="relative">
+              <div className="w-20 h-20 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full flex items-center justify-center text-2xl text-white font-bold">
+                {profile?.username?.[0]?.toUpperCase() || 'U'}
+              </div>
+              {profile?.is_premium && (
+                <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full p-1">
+                  <Crown className="w-4 h-4 text-white" />
+                </div>
+              )}
             </div>
             <div>
               {editingProfile ? (
@@ -169,9 +211,17 @@ export function Profile() {
                 </div>
               ) : (
                 <div>
-                  <h1 className="text-2xl font-bold text-white mb-2">
-                    {profile?.username || 'Anonymous User'}
-                  </h1>
+                  <div className="flex items-center space-x-3 mb-2">
+                    <h1 className="text-2xl font-bold text-white">
+                      {profile?.username || 'Anonymous User'}
+                    </h1>
+                    {profile?.is_premium && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30">
+                        <Crown className="w-4 h-4 mr-1" />
+                        Pro Member
+                      </span>
+                    )}
+                  </div>
                   <p className="text-gray-400 mb-2">
                     {profile?.bio || 'No bio available'}
                   </p>

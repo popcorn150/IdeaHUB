@@ -9,6 +9,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, username: string) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -45,6 +46,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  // Check for success parameter in URL and refresh profile
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('success') === 'true' && user) {
+      // Payment was successful, refresh profile after a short delay
+      setTimeout(() => {
+        fetchProfile(user.id)
+      }, 2000)
+    }
+  }, [user])
+
   async function fetchProfile(userId: string) {
     try {
       const { data, error } = await supabase
@@ -75,6 +87,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error fetching profile:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchProfile(user.id)
     }
   }
 
@@ -109,7 +127,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       signUp,
       signIn,
-      signOut
+      signOut,
+      refreshProfile
     }}>
       {children}
     </AuthContext.Provider>
