@@ -1,5 +1,7 @@
 import React from 'react'
 import { Lightbulb, Zap, Brain, Rocket, Palette, Music, Leaf, Code, Camera, Heart } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
+import { Link } from 'react-router-dom'
 
 const dummyIdeas = [
   {
@@ -168,8 +170,34 @@ function CarouselRow({ ideas, direction, speed = 30 }: CarouselRowProps) {
 }
 
 export function LandingCarousel() {
+  const { user, profile } = useAuth()
   const topRowIdeas = dummyIdeas.slice(0, 5)
   const bottomRowIdeas = dummyIdeas.slice(5, 10)
+
+  // Determine CTA based on user role
+  const getCallToAction = () => {
+    if (!user) {
+      return {
+        text: 'Get Started',
+        href: '/auth'
+      }
+    }
+
+    if (profile?.role === 'investor') {
+      return {
+        text: 'Explore Ideas',
+        href: '/'
+      }
+    }
+
+    // Default for creators
+    return {
+      text: 'Upload an Idea',
+      href: '/upload'
+    }
+  }
+
+  const cta = getCallToAction()
 
   return (
     <div className="space-y-8">
@@ -195,16 +223,28 @@ export function LandingCarousel() {
           <div className="bg-gradient-to-r from-cyan-400 to-purple-500 p-3 rounded-2xl w-16 h-16 mx-auto mb-4 flex items-center justify-center">
             <Lightbulb className="w-8 h-8 text-white" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">Ready to Share Your Ideas?</h3>
+          <h3 className="text-xl font-bold text-white mb-2">
+            {user 
+              ? profile?.role === 'investor' 
+                ? 'Ready to Discover Ideas?' 
+                : 'Ready to Share Your Ideas?'
+              : 'Ready to Share Your Ideas?'
+            }
+          </h3>
           <p className="text-gray-400 text-sm mb-6">
-            Join thousands of creators and innovators in our community
+            {user
+              ? profile?.role === 'investor'
+                ? 'Explore innovative concepts from talented creators'
+                : 'Join thousands of creators and innovators in our community'
+              : 'Join thousands of creators and innovators in our community'
+            }
           </p>
-          <a
-            href="/auth"
+          <Link
+            to={cta.href}
             className="inline-flex items-center space-x-2 bg-gradient-to-r from-cyan-500 to-purple-600 text-white px-6 py-3 rounded-lg hover:shadow-lg hover:shadow-cyan-400/25 transition-all duration-300 font-medium"
           >
-            <span>Get Started</span>
-          </a>
+            <span>{cta.text}</span>
+          </Link>
         </div>
       </div>
     </div>
