@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { Eye, EyeOff, Star, Tag, Calendar, Shield, ShoppingCart, Check, X, Heart, MessageCircle, GitBranch } from 'lucide-react'
 import { IdeaDetail } from './IdeaDetail'
 import { RemixModal } from './RemixModal'
+import { LandingCarousel } from './LandingCarousel'
 import type { Idea, User } from '../lib/types'
 
 interface IdeaWithAuthor extends Idea {
@@ -159,6 +160,9 @@ export function IdeaFeed() {
     })
   }
 
+  // Show landing carousel if user is not logged in or no ideas exist
+  const showLandingCarousel = !user || ideas.length === 0
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -173,6 +177,10 @@ export function IdeaFeed() {
         ))}
       </div>
     )
+  }
+
+  if (showLandingCarousel) {
+    return <LandingCarousel />
   }
 
   return (
@@ -332,15 +340,6 @@ export function IdeaFeed() {
           </div>
         ))}
       </div>
-
-      {ideas.length === 0 && (
-        <div className="text-center py-12">
-          <div className="bg-gray-800/50 rounded-xl p-8">
-            <h3 className="text-xl font-semibold text-gray-300 mb-2">No ideas yet</h3>
-            <p className="text-gray-400">Be the first to share an innovative idea!</p>
-          </div>
-        </div>
-      )}
 
       {/* Purchase Confirmation Modal */}
       {purchaseModal && (
