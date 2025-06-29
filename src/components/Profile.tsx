@@ -17,7 +17,6 @@ export function Profile() {
   const [loading, setLoading] = useState(true)
   const [editingProfile, setEditingProfile] = useState(false)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
   const [webhookStatus, setWebhookStatus] = useState<'checking' | 'working' | 'failed' | null>(null)
   const [profileData, setProfileData] = useState({
     username: '',
@@ -47,7 +46,7 @@ export function Profile() {
     const success = searchParams.get('success')
     const canceled = searchParams.get('canceled')
     
-    if (success === 'true') {
+    if (success === 'true' && user) {
       setShowSuccessMessage(true)
       setWebhookStatus('checking')
       
@@ -56,6 +55,12 @@ export function Profile() {
       const maxAttempts = 15 // 30 seconds total
       
       const checkPremiumStatus = async () => {
+        // Add null check for user
+        if (!user) {
+          console.log('User not available, skipping premium status check')
+          return false
+        }
+
         attempts++
         console.log(`Checking premium status, attempt ${attempts}/${maxAttempts}`)
         
@@ -169,49 +174,6 @@ export function Profile() {
     }
   }
 
-  // Manual refresh function for debugging
-  async function handleManualRefresh() {
-    setRefreshing(true)
-    try {
-      await refreshProfile()
-      
-      // Also check the database directly
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select('is_premium')
-        .eq('id', user.id)
-        .single()
-      
-      if (error) {
-        console.error('Error checking premium status:', error)
-      } else {
-        console.log('Current premium status in database:', userData.is_premium)
-      }
-    } catch (error) {
-      console.error('Error refreshing profile:', error)
-    } finally {
-      setRefreshing(false)
-    }
-  }
-
-  // Temporary function to manually set premium status for testing
-  async function togglePremiumStatus() {
-    try {
-      const newStatus = !profile?.is_premium
-      const { error } = await supabase
-        .from('users')
-        .update({ is_premium: newStatus })
-        .eq('id', user.id)
-
-      if (error) throw error
-      
-      console.log('Manually updated premium status to:', newStatus)
-      await refreshProfile()
-    } catch (error) {
-      console.error('Error updating premium status:', error)
-    }
-  }
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -273,39 +235,6 @@ export function Profile() {
           </div>
         </div>
       )}
-
-      {/* Debug Panel - Remove this in production */}
-      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-yellow-400 font-medium">Debug Panel</h3>
-            <p className="text-yellow-300/80 text-sm">
-              Premium Status: {profile?.is_premium ? 'TRUE (Premium)' : 'FALSE (Free)'}
-            </p>
-            {webhookStatus && (
-              <p className="text-yellow-300/60 text-xs">
-                Webhook Status: {webhookStatus}
-              </p>
-            )}
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={handleManualRefresh}
-              disabled={refreshing}
-              className="flex items-center space-x-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 px-3 py-2 rounded-lg transition-all duration-300 disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </button>
-            <button
-              onClick={togglePremiumStatus}
-              className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 px-3 py-2 rounded-lg transition-all duration-300"
-            >
-              Toggle Premium
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* Profile Header */}
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-8 mb-8">
