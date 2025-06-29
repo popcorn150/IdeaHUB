@@ -8,8 +8,11 @@ export interface Database {
           bio: string | null
           email: string
           avatar: string | null
+          avatar_url: string | null
           wallet_address: string | null
           created_at: string
+          is_premium: boolean
+          role: 'creator' | 'investor'
         }
         Insert: {
           id: string
@@ -17,8 +20,11 @@ export interface Database {
           bio?: string | null
           email: string
           avatar?: string | null
+          avatar_url?: string | null
           wallet_address?: string | null
           created_at?: string
+          is_premium?: boolean
+          role?: 'creator' | 'investor'
         }
         Update: {
           id?: string
@@ -26,8 +32,11 @@ export interface Database {
           bio?: string | null
           email?: string
           avatar?: string | null
+          avatar_url?: string | null
           wallet_address?: string | null
           created_at?: string
+          is_premium?: boolean
+          role?: 'creator' | 'investor'
         }
       }
       ideas: {

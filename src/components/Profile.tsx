@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
 import { supabase } from '../lib/supabase'
 import { Navigate, useSearchParams } from 'react-router-dom'
-import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw, AlertCircle } from 'lucide-react'
+import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw, AlertCircle, Camera, Upload } from 'lucide-react'
 import type { Idea, User } from '../lib/types'
 
 interface IdeaWithMintedUser extends Idea {
@@ -11,6 +12,7 @@ interface IdeaWithMintedUser extends Idea {
 
 export function Profile() {
   const { user, profile, refreshProfile } = useAuth()
+  const { showToast } = useToast()
   const [searchParams] = useSearchParams()
   const [ideas, setIdeas] = useState<IdeaWithMintedUser[]>([])
   const [ownedIdeas, setOwnedIdeas] = useState<IdeaWithMintedUser[]>([])
@@ -21,7 +23,9 @@ export function Profile() {
   const [profileData, setProfileData] = useState({
     username: '',
     bio: '',
-    wallet_address: ''
+    wallet_address: '',
+    avatar_url: '',
+    role: 'creator' as 'creator' | 'investor'
   })
 
   useEffect(() => {
@@ -29,7 +33,9 @@ export function Profile() {
       setProfileData({
         username: profile.username || '',
         bio: profile.bio || '',
-        wallet_address: profile.wallet_address || ''
+        wallet_address: profile.wallet_address || '',
+        avatar_url: profile.avatar_url || '',
+        role: profile.role || 'creator'
       })
     }
   }, [profile])
@@ -134,6 +140,7 @@ export function Profile() {
       setIdeas(data || [])
     } catch (error) {
       console.error('Error fetching user ideas:', error)
+      showToast('Failed to load your ideas', 'error')
     } finally {
       setLoading(false)
     }
@@ -156,6 +163,7 @@ export function Profile() {
       setOwnedIdeas(data || [])
     } catch (error) {
       console.error('Error fetching owned ideas:', error)
+      showToast('Failed to load owned ideas', 'error')
     }
   }
 
@@ -167,10 +175,13 @@ export function Profile() {
         .eq('id', user.id)
 
       if (error) throw error
-      setEditingProfile(false)
+      
       await refreshProfile()
+      setEditingProfile(false)
+      showToast('Profile updated successfully!', 'success')
     } catch (error) {
       console.error('Error updating profile:', error)
+      showToast('Failed to update profile', 'error')
     }
   }
 
@@ -196,6 +207,24 @@ export function Profile() {
 
   const nftIdeas = ideas.filter(idea => idea.is_nft)
   const protectedIdeas = ideas.filter(idea => idea.is_blurred)
+
+  const getAvatarDisplay = () => {
+    if (profileData.avatar_url) {
+      return (
+        <img
+          src={profileData.avatar_url}
+          alt="Profile"
+          className="w-20 h-20 rounded-full object-cover"
+        />
+      )
+    }
+    
+    return (
+      <div className="w-20 h-20 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full flex items-center justify-center text-2xl text-white font-bold">
+        {profile?.username?.[0]?.toUpperCase() || 'U'}
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -241,13 +270,24 @@ export function Profile() {
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-6">
             <div className="relative">
-              <div className="w-20 h-20 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full flex items-center justify-center text-2xl text-white font-bold">
-                {profile?.username?.[0]?.toUpperCase() || 'U'}
-              </div>
+              {getAvatarDisplay()}
               {profile?.is_premium && (
                 <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full p-1">
                   <Crown className="w-4 h-4 text-white" />
                 </div>
+              )}
+              {editingProfile && (
+                <button
+                  onClick={() => {
+                    const url = prompt('Enter avatar image URL:')
+                    if (url) {
+                      setProfileData({ ...profileData, avatar_url: url })
+                    }
+                  }}
+                  className="absolute -bottom-1 -right-1 bg-cyan-500 rounded-full p-1 hover:bg-cyan-600 transition-colors duration-300"
+                >
+                  <Camera className="w-3 h-3 text-white" />
+                </button>
               )}
             </div>
             <div>
@@ -274,12 +314,21 @@ export function Profile() {
                     value={profileData.wallet_address}
                     onChange={(e) => setProfileData({ ...profileData, wallet_address: e.target.value })}
                   />
+                  <select
+                    value={profileData.role}
+                    onChange={(e) => setProfileData({ ...profileData, role: e.target.value as 'creator' | 'investor' })}
+                    className="bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-cyan-500 focus:outline-none w-full"
+                  >
+                    <option value="creator">Creator</option>
+                    <option value="investor">Investor</option>
+                  </select>
                   <div className="flex space-x-2">
                     <button
                       onClick={updateProfile}
-                      className="bg-cyan-500 text-white px-4 py-2 rounded-lg hover:bg-cyan-600 transition-colors duration-300"
+                      className="bg-cyan-500 text-white px-4 py-2 rounded-lg hover:bg-cyan-600 transition-colors duration-300 flex items-center space-x-2"
                     >
-                      Save
+                      <Upload className="w-4 h-4" />
+                      <span>Save</span>
                     </button>
                     <button
                       onClick={() => setEditingProfile(false)}
@@ -301,6 +350,13 @@ export function Profile() {
                         Pro Member
                       </span>
                     )}
+                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
+                      profile?.role === 'creator' 
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                        : 'bg-green-500/20 text-green-300 border border-green-500/30'
+                    }`}>
+                      {profile?.role === 'creator' ? 'Creator' : 'Investor'}
+                    </span>
                   </div>
                   <p className="text-gray-400 mb-2">
                     {profile?.bio || 'No bio available'}
@@ -494,6 +550,7 @@ export function Profile() {
                         key={index}
                         className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
                       >
+                
                         <Tag className="w-3 h-3 mr-1" />
                         {tag}
                       </span>

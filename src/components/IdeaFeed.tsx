@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Eye, EyeOff, Star, Tag, Calendar, Shield, ShoppingCart, Check, X, Heart, MessageCircle, GitBranch } from 'lucide-react'
+import { useToast } from '../contexts/ToastContext'
+import { Eye, EyeOff, Star, Tag, Calendar, Shield, ShoppingCart, Check, X, Heart, MessageCircle, GitBranch, Edit, Trash2 } from 'lucide-react'
 import { IdeaDetail } from './IdeaDetail'
 import { RemixModal } from './RemixModal'
+import { EditIdeaModal } from './EditIdeaModal'
+import { DeleteConfirmModal } from './DeleteConfirmModal'
+import { FeedFilters } from './FeedFilters'
 import { LandingCarousel } from './LandingCarousel'
 import type { Idea, User } from '../lib/types'
 
@@ -17,16 +21,29 @@ interface IdeaWithAuthor extends Idea {
 
 export function IdeaFeed() {
   const { user, profile } = useAuth()
+  const { showToast } = useToast()
   const [ideas, setIdeas] = useState<IdeaWithAuthor[]>([])
+  const [filteredIdeas, setFilteredIdeas] = useState<IdeaWithAuthor[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIdea, setSelectedIdea] = useState<IdeaWithAuthor | null>(null)
   const [purchaseModal, setPurchaseModal] = useState<IdeaWithAuthor | null>(null)
   const [remixModal, setRemixModal] = useState<IdeaWithAuthor | null>(null)
+  const [editModal, setEditModal] = useState<IdeaWithAuthor | null>(null)
+  const [deleteModal, setDeleteModal] = useState<IdeaWithAuthor | null>(null)
   const [purchasing, setPurchasing] = useState(false)
+  const [filters, setFilters] = useState({
+    sortBy: 'newest' as 'newest' | 'oldest',
+    nftStatus: 'all' as 'all' | 'minted' | 'not_minted',
+    selectedTag: ''
+  })
 
   useEffect(() => {
     fetchIdeas()
   }, [user])
+
+  useEffect(() => {
+    applyFilters()
+  }, [ideas, filters])
 
   async function fetchIdeas() {
     try {
@@ -72,10 +89,43 @@ export function IdeaFeed() {
       setIdeas(ideasWithInteractions)
     } catch (error) {
       console.error('Error fetching ideas:', error)
+      showToast('Failed to load ideas', 'error')
     } finally {
       setLoading(false)
     }
   }
+
+  function applyFilters() {
+    let filtered = [...ideas]
+
+    // Filter by tag
+    if (filters.selectedTag) {
+      filtered = filtered.filter(idea => 
+        idea.tags?.some(tag => tag.toLowerCase().includes(filters.selectedTag.toLowerCase()))
+      )
+    }
+
+    // Filter by NFT status
+    if (filters.nftStatus === 'minted') {
+      filtered = filtered.filter(idea => idea.is_nft && idea.minted_by)
+    } else if (filters.nftStatus === 'not_minted') {
+      filtered = filtered.filter(idea => !idea.minted_by)
+    }
+
+    // Sort
+    if (filters.sortBy === 'oldest') {
+      filtered.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    } else {
+      filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    }
+
+    setFilteredIdeas(filtered)
+  }
+
+  // Get all unique tags for filter dropdown
+  const availableTags = Array.from(
+    new Set(ideas.flatMap(idea => idea.tags || []))
+  ).sort()
 
   const canViewFullIdea = (idea: IdeaWithAuthor) => {
     return !idea.is_blurred || idea.created_by === user?.id || idea.minted_by === user?.id
@@ -83,6 +133,10 @@ export function IdeaFeed() {
 
   const canPurchaseIdea = (idea: IdeaWithAuthor) => {
     return user && !idea.minted_by && idea.created_by !== user.id
+  }
+
+  const canEditIdea = (idea: IdeaWithAuthor) => {
+    return user && idea.created_by === user.id
   }
 
   const handlePurchase = async (idea: IdeaWithAuthor) => {
@@ -100,11 +154,12 @@ export function IdeaFeed() {
 
       if (error) throw error
 
-      // Refresh ideas to show updated state
+      showToast('Idea purchased successfully!', 'success')
       await fetchIdeas()
       setPurchaseModal(null)
     } catch (error) {
       console.error('Error purchasing idea:', error)
+      showToast('Failed to purchase idea', 'error')
     } finally {
       setPurchasing(false)
     }
@@ -122,6 +177,7 @@ export function IdeaFeed() {
           .eq('user_id', user.id)
 
         if (error) throw error
+        showToast('Upvote removed', 'info')
       } else {
         const { error } = await supabase
           .from('upvotes')
@@ -131,12 +187,13 @@ export function IdeaFeed() {
           })
 
         if (error) throw error
+        showToast('Idea upvoted!', 'success')
       }
 
-      // Refresh ideas to show updated state
       await fetchIdeas()
     } catch (error) {
       console.error('Error toggling upvote:', error)
+      showToast('Failed to update upvote', 'error')
     }
   }
 
@@ -192,8 +249,15 @@ export function IdeaFeed() {
         <p className="text-gray-400">Discover innovative ideas from the community</p>
       </div>
 
+      {/* Filters */}
+      <FeedFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        availableTags={availableTags}
+      />
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {ideas.map((idea) => (
+        {filteredIdeas.map((idea) => (
           <div
             key={idea.id}
             className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 hover:border-cyan-500/30 transition-all duration-300 overflow-hidden group"
@@ -212,10 +276,10 @@ export function IdeaFeed() {
             
             <div className="p-6">
               <div className="flex items-start justify-between mb-3">
-                <h3 className="text-xl font-semibold text-white group-hover:text-cyan-400 transition-colors duration-300">
+                <h3 className="text-xl font-semibold text-white group-hover:text-cyan-400 transition-colors duration-300 flex-1">
                   {idea.title}
                 </h3>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 ml-2">
                   {idea.remix_of_id && (
                     <div className="bg-blue-500/20 p-1 rounded-md">
                       <GitBranch className="w-4 h-4 text-blue-400" />
@@ -315,24 +379,45 @@ export function IdeaFeed() {
                 </button>
 
                 <div className="grid grid-cols-2 gap-2">
-                  {user && idea.created_by !== user.id && (
-                    <button
-                      onClick={() => setRemixModal(idea)}
-                      className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
-                    >
-                      <GitBranch className="w-4 h-4" />
-                      <span>Remix</span>
-                    </button>
-                  )}
+                  {canEditIdea(idea) ? (
+                    <>
+                      <button
+                        onClick={() => setEditModal(idea)}
+                        className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => setDeleteModal(idea)}
+                        className="bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-3 rounded-lg transition-all duration-300 border border-red-500/30 hover:border-red-400/50 flex items-center justify-center space-x-2 text-sm"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Delete</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {user && idea.created_by !== user.id && (
+                        <button
+                          onClick={() => setRemixModal(idea)}
+                          className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
+                        >
+                          <GitBranch className="w-4 h-4" />
+                          <span>Remix</span>
+                        </button>
+                      )}
 
-                  {canPurchaseIdea(idea) && (
-                    <button
-                      onClick={() => setPurchaseModal(idea)}
-                      className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 text-green-400 py-2 px-3 rounded-lg transition-all duration-300 border border-green-500/30 hover:border-green-400/50 flex items-center justify-center space-x-2 text-sm"
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                      <span>Buy</span>
-                    </button>
+                      {canPurchaseIdea(idea) && (
+                        <button
+                          onClick={() => setPurchaseModal(idea)}
+                          className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 text-green-400 py-2 px-3 rounded-lg transition-all duration-300 border border-green-500/30 hover:border-green-400/50 flex items-center justify-center space-x-2 text-sm"
+                        >
+                          <ShoppingCart className="w-4 h-4" />
+                          <span>Buy</span>
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -340,6 +425,15 @@ export function IdeaFeed() {
           </div>
         ))}
       </div>
+
+      {filteredIdeas.length === 0 && !loading && (
+        <div className="text-center py-12">
+          <div className="bg-gray-800/50 rounded-xl p-8">
+            <h3 className="text-xl font-semibold text-gray-300 mb-2">No ideas found</h3>
+            <p className="text-gray-400">Try adjusting your filters or check back later for new ideas!</p>
+          </div>
+        </div>
+      )}
 
       {/* Purchase Confirmation Modal */}
       {purchaseModal && (
@@ -427,6 +521,24 @@ export function IdeaFeed() {
         <RemixModal
           originalIdea={remixModal}
           onClose={() => setRemixModal(null)}
+          onSuccess={fetchIdeas}
+        />
+      )}
+
+      {/* Edit Modal */}
+      {editModal && (
+        <EditIdeaModal
+          idea={editModal}
+          onClose={() => setEditModal(null)}
+          onSuccess={fetchIdeas}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal && (
+        <DeleteConfirmModal
+          idea={deleteModal}
+          onClose={() => setDeleteModal(null)}
           onSuccess={fetchIdeas}
         />
       )}

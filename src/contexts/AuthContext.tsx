@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { RoleSelector } from '../components/RoleSelector'
 
 interface AuthContextType {
   user: User | null
@@ -18,6 +19,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showRoleSelector, setShowRoleSelector] = useState(false)
 
   useEffect(() => {
     // Get initial session
@@ -74,14 +76,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .insert({
               id: userData.user.id,
               email: userData.user.email!,
-              username: userData.user.email!.split('@')[0]
+              username: userData.user.email!.split('@')[0],
+              role: 'creator' // Default role
             })
             .select()
             .single()
           setProfile(newProfile)
+          
+          // Show role selector for new users
+          if (newProfile) {
+            setShowRoleSelector(true)
+          }
         }
       } else if (!error) {
         setProfile(data)
+        
+        // Show role selector if user doesn't have a role set
+        if (!data.role) {
+          setShowRoleSelector(true)
+        }
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
@@ -118,6 +131,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
+    
+    // Redirect to landing page after logout
+    window.location.href = '/'
   }
 
   return (
@@ -131,6 +147,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshProfile
     }}>
       {children}
+      {showRoleSelector && (
+        <RoleSelector onComplete={() => setShowRoleSelector(false)} />
+      )}
     </AuthContext.Provider>
   )
 }
