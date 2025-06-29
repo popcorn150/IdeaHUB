@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { Lightbulb, User, Home, PlusCircle, LogOut } from 'lucide-react'
+import { Lightbulb, User, Home, PlusCircle, LogOut, Crown } from 'lucide-react'
+import { PricingModal } from './PricingModal'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -10,6 +11,7 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const { user, profile, signOut } = useAuth()
   const location = useLocation()
+  const [showPricing, setShowPricing] = useState(false)
 
   const navigation = [
     { name: 'Feed', href: '/', icon: Home },
@@ -56,6 +58,22 @@ export function Layout({ children }: LayoutProps) {
             <div className="flex items-center space-x-4">
               {user ? (
                 <div className="flex items-center space-x-4">
+                  {/* Premium Status / Upgrade Button */}
+                  {profile?.is_premium ? (
+                    <div className="flex items-center space-x-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 px-3 py-1 rounded-lg border border-purple-500/30">
+                      <Crown className="w-4 h-4" />
+                      <span className="text-sm font-medium">Pro</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowPricing(true)}
+                      className="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 py-2 rounded-lg hover:shadow-lg hover:shadow-purple-400/25 transition-all duration-300"
+                    >
+                      <Crown className="w-4 h-4" />
+                      <span className="hidden sm:block">Upgrade</span>
+                    </button>
+                  )}
+
                   <span className="text-gray-300 hidden sm:block">
                     Hey, {profile?.username || 'User'}!
                   </span>
@@ -109,6 +127,11 @@ export function Layout({ children }: LayoutProps) {
             })}
           </div>
         </nav>
+      )}
+
+      {/* Pricing Modal */}
+      {showPricing && (
+        <PricingModal onClose={() => setShowPricing(false)} />
       )}
     </div>
   )
