@@ -185,6 +185,19 @@ export function Profile() {
 
     setUploadingAvatar(true)
     try {
+      // First, check if the avatars bucket exists
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets()
+      
+      if (bucketsError) {
+        throw new Error('Failed to check storage buckets')
+      }
+
+      const avatarsBucket = buckets?.find(bucket => bucket.name === 'avatars')
+      
+      if (!avatarsBucket) {
+        throw new Error('Avatar storage is not configured. Please contact support to enable avatar uploads.')
+      }
+
       // Create a unique filename
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}-${Date.now()}.${fileExt}`
@@ -197,7 +210,12 @@ export function Profile() {
           upsert: false
         })
 
-      if (error) throw error
+      if (error) {
+        if (error.message.includes('Bucket not found')) {
+          throw new Error('Avatar storage is not configured. Please contact support to enable avatar uploads.')
+        }
+        throw error
+      }
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
@@ -206,9 +224,17 @@ export function Profile() {
 
       setProfileData({ ...profileData, avatar_url: publicUrl })
       showToast('Avatar uploaded successfully!', 'success')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading avatar:', error)
-      showToast('Failed to upload avatar. Please try again.', 'error')
+      
+      // Provide specific error messages based on the error type
+      if (error.message.includes('Avatar storage is not configured')) {
+        showToast(error.message, 'error')
+      } else if (error.message.includes('Bucket not found')) {
+        showToast('Avatar storage is not configured. Please contact support to enable avatar uploads.', 'error')
+      } else {
+        showToast('Failed to upload avatar. Please try again later.', 'error')
+      }
     } finally {
       setUploadingAvatar(false)
     }
