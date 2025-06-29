@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { Navigate, useSearchParams } from 'react-router-dom'
-import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw } from 'lucide-react'
+import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw, AlertCircle } from 'lucide-react'
 import type { Idea, User } from '../lib/types'
 
 interface IdeaWithMintedUser extends Idea {
@@ -18,6 +18,7 @@ export function Profile() {
   const [editingProfile, setEditingProfile] = useState(false)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [webhookStatus, setWebhookStatus] = useState<'checking' | 'working' | 'failed' | null>(null)
   const [profileData, setProfileData] = useState({
     username: '',
     bio: '',
@@ -41,29 +42,73 @@ export function Profile() {
     }
   }, [user])
 
-  // Check for payment success
+  // Check for payment success and monitor webhook status
   useEffect(() => {
     const success = searchParams.get('success')
     const canceled = searchParams.get('canceled')
     
     if (success === 'true') {
       setShowSuccessMessage(true)
-      // Refresh profile multiple times to ensure we get the updated status
-      const refreshInterval = setInterval(async () => {
+      setWebhookStatus('checking')
+      
+      // Start monitoring for premium status update
+      let attempts = 0
+      const maxAttempts = 15 // 30 seconds total
+      
+      const checkPremiumStatus = async () => {
+        attempts++
+        console.log(`Checking premium status, attempt ${attempts}/${maxAttempts}`)
+        
         await refreshProfile()
+        
+        // Check if user is now premium
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('is_premium')
+          .eq('id', user.id)
+          .single()
+        
+        if (error) {
+          console.error('Error checking premium status:', error)
+        } else {
+          console.log('Current premium status:', userData.is_premium)
+          
+          if (userData.is_premium) {
+            setWebhookStatus('working')
+            console.log('✅ Webhook successfully updated premium status!')
+            return true // Stop checking
+          }
+        }
+        
+        if (attempts >= maxAttempts) {
+          setWebhookStatus('failed')
+          console.log('❌ Webhook failed to update premium status after 30 seconds')
+          return true // Stop checking
+        }
+        
+        return false // Continue checking
+      }
+      
+      // Check immediately, then every 2 seconds
+      const intervalId = setInterval(async () => {
+        const shouldStop = await checkPremiumStatus()
+        if (shouldStop) {
+          clearInterval(intervalId)
+        }
       }, 2000)
       
-      // Stop refreshing after 30 seconds
-      setTimeout(() => {
-        clearInterval(refreshInterval)
-      }, 30000)
+      // Initial check
+      checkPremiumStatus()
       
-      // Hide success message after 10 seconds
+      // Hide success message after 15 seconds
       setTimeout(() => {
         setShowSuccessMessage(false)
-      }, 10000)
+      }, 15000)
+      
+      // Cleanup interval on unmount
+      return () => clearInterval(intervalId)
     }
-  }, [searchParams, refreshProfile])
+  }, [searchParams, refreshProfile, user])
 
   if (!user) {
     return <Navigate to="/auth" replace />
@@ -200,11 +245,32 @@ export function Profile() {
             <span className="text-green-400 font-medium">Payment Successful!</span>
           </div>
           <p className="text-green-300/80 text-sm mt-1">
-            Welcome to Idea-HUB Pro! Your premium features are now active.
+            Welcome to Idea-HUB Pro! Your premium features are being activated...
           </p>
-          <p className="text-green-300/60 text-xs mt-2">
-            If you don't see premium features yet, please wait a moment for the system to update.
-          </p>
+          
+          {/* Webhook Status */}
+          <div className="mt-3 flex items-center space-x-2">
+            {webhookStatus === 'checking' && (
+              <>
+                <div className="w-4 h-4 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin"></div>
+                <span className="text-green-300/60 text-xs">Activating premium features...</span>
+              </>
+            )}
+            {webhookStatus === 'working' && (
+              <>
+                <CheckCircle className="w-4 h-4 text-green-400" />
+                <span className="text-green-300/80 text-xs">Premium features activated!</span>
+              </>
+            )}
+            {webhookStatus === 'failed' && (
+              <>
+                <AlertCircle className="w-4 h-4 text-yellow-400" />
+                <span className="text-yellow-300/80 text-xs">
+                  Taking longer than expected. Try refreshing the page or contact support if the issue persists.
+                </span>
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -216,6 +282,11 @@ export function Profile() {
             <p className="text-yellow-300/80 text-sm">
               Premium Status: {profile?.is_premium ? 'TRUE (Premium)' : 'FALSE (Free)'}
             </p>
+            {webhookStatus && (
+              <p className="text-yellow-300/60 text-xs">
+                Webhook Status: {webhookStatus}
+              </p>
+            )}
           </div>
           <div className="flex space-x-2">
             <button
