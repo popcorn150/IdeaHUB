@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       throw new Error('Cannot use test price IDs with live mode keys. Please use test mode Stripe keys for development.')
     }
 
-    // Get or create Stripe customer
+    // Get existing customer from database
     const { data: existingCustomer } = await supabase
       .from('stripe_customers')
       .select('customer_id')
@@ -55,6 +55,29 @@ Deno.serve(async (req) => {
 
     let customerId = existingCustomer?.customer_id
 
+    // If we have an existing customer ID, verify it's compatible with current mode
+    if (customerId) {
+      try {
+        // Try to retrieve the customer to verify it exists in the current mode
+        await stripe.customers.retrieve(customerId)
+      } catch (error) {
+        // If customer doesn't exist in current mode, we need to create a new one
+        if (error.code === 'resource_missing' || error.message.includes('similar object exists in live mode') || error.message.includes('similar object exists in test mode')) {
+          console.log(`Customer ${customerId} exists in different mode, creating new customer for current mode`)
+          customerId = null
+          
+          // Delete the incompatible customer record from our database
+          await supabase
+            .from('stripe_customers')
+            .delete()
+            .eq('user_id', userId)
+        } else {
+          throw error
+        }
+      }
+    }
+
+    // Create new customer if we don't have a compatible one
     if (!customerId) {
       // Get user email from auth
       const { data: { user } } = await supabase.auth.admin.getUserById(userId)
