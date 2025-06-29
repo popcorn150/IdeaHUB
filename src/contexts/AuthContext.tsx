@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .insert({
               id: userData.user.id,
               email: userData.user.email!,
-              username: userData.user.email!.split('@')[0],
+              username: userData.user.user_metadata?.username || userData.user.email!.split('@')[0],
               role: 'creator' // Default role
             })
             .select()

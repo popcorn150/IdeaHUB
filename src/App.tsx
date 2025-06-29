@@ -9,6 +9,18 @@ import { IdeaUpload } from './components/IdeaUpload'
 import { Profile } from './components/Profile'
 import { CreatorDashboard } from './components/CreatorDashboard'
 import { InvestorDashboard } from './components/InvestorDashboard'
+import { useAuth } from './contexts/AuthContext'
+
+// Protected route component for creators only
+function CreatorOnlyRoute({ children }: { children: React.ReactNode }) {
+  const { profile } = useAuth()
+  
+  if (profile?.role !== 'creator') {
+    return <IdeaFeed />
+  }
+  
+  return <>{children}</>
+}
 
 function App() {
   return (
@@ -21,7 +33,11 @@ function App() {
               <Layout>
                 <Routes>
                   <Route path="/" element={<IdeaFeed />} />
-                  <Route path="/upload" element={<IdeaUpload />} />
+                  <Route path="/upload" element={
+                    <CreatorOnlyRoute>
+                      <IdeaUpload />
+                    </CreatorOnlyRoute>
+                  } />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/dashboard/creator" element={<CreatorDashboard />} />
                   <Route path="/dashboard/investor" element={<InvestorDashboard />} />

@@ -29,6 +29,7 @@ export function Layout({ children }: LayoutProps) {
         { name: 'Profile', href: '/profile', icon: User },
       ]
     } else {
+      // Investors don't get upload functionality
       return [
         ...baseNav,
         { name: 'Dashboard', href: '/dashboard/investor', icon: TrendingUp },
