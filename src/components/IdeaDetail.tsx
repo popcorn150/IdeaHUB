@@ -50,6 +50,16 @@ export function IdeaDetail({ idea, onClose, onPurchase, onPartnership, onRemix }
   const [togglingUpvote, setTogglingUpvote] = useState(false)
 
   useEffect(() => {
+    // Check if this is a dummy idea (not a real UUID)
+    if (idea.id.startsWith('dummy-')) {
+      // For dummy data, initialize with empty arrays and stop loading
+      setComments([])
+      setUpvotes([])
+      setUserUpvoted(false)
+      setLoading(false)
+      return
+    }
+
     fetchComments()
     fetchUpvotes()
   }, [idea.id])
@@ -149,6 +159,12 @@ export function IdeaDetail({ idea, onClose, onPurchase, onPartnership, onRemix }
   async function handleSubmitComment() {
     if (!user || !newComment.trim()) return
 
+    // Prevent comment submission for dummy ideas
+    if (idea.id.startsWith('dummy-')) {
+      console.warn('Cannot submit comments for dummy ideas')
+      return
+    }
+
     setSubmittingComment(true)
     try {
       const { error } = await supabase
@@ -172,6 +188,12 @@ export function IdeaDetail({ idea, onClose, onPurchase, onPartnership, onRemix }
 
   async function handleToggleUpvote() {
     if (!user || togglingUpvote) return
+
+    // Prevent upvote toggle for dummy ideas
+    if (idea.id.startsWith('dummy-')) {
+      console.warn('Cannot toggle upvotes for dummy ideas')
+      return
+    }
 
     setTogglingUpvote(true)
     try {
