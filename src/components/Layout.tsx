@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Lightbulb, User, Home, PlusCircle, LogOut, Crown, BarChart3, TrendingUp, Menu, X } from 'lucide-react'
@@ -9,10 +9,24 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const { user, profile, signOut } = useAuth()
+  const { user, profile, signOut, refreshProfile } = useAuth()
   const location = useLocation()
   const [showPricing, setShowPricing] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  // Force refresh profile when component mounts and user exists
+  useEffect(() => {
+    if (user && profile) {
+      console.log('Layout mounted, current profile:', profile)
+      
+      // Check URL for payment success
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get('success') === 'true') {
+        console.log('Payment success in URL, forcing profile refresh...')
+        refreshProfile()
+      }
+    }
+  }, [user, refreshProfile])
 
   const getNavigation = () => {
     if (!user || !profile) return []
@@ -83,7 +97,7 @@ export function Layout({ children }: LayoutProps) {
                 <div className="flex items-center space-x-4">
                   {/* Premium Status / Upgrade Button */}
                   {profile?.is_premium ? (
-                    <div className="flex items-center space-x-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 px-4 py-2 rounded-lg border border-purple-500/30 shadow-lg shadow-purple-400/25">
+                    <div className="flex items-center space-x-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 px-4 py-2 rounded-lg border border-purple-500/30 shadow-lg shadow-purple-400/25 animate-in slide-in-from-right duration-500">
                       <Crown className="w-4 h-4" />
                       <span className="text-sm font-medium">Pro Member</span>
                     </div>

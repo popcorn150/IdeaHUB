@@ -48,47 +48,92 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Check for success parameter in URL and refresh profile more aggressively
+  // Enhanced premium status monitoring after payment
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     if (urlParams.get('success') === 'true' && user) {
-      // Payment was successful, refresh profile immediately and then periodically
-      const refreshImmediately = async () => {
-        await fetchProfile(user.id)
+      console.log('Payment success detected, starting aggressive profile refresh...')
+      
+      let attempts = 0
+      const maxAttempts = 30 // 60 seconds total
+      let previousPremiumStatus = profile?.is_premium
+      
+      const checkPremiumStatus = async () => {
+        attempts++
+        console.log(`Premium status check attempt ${attempts}/${maxAttempts}`)
+        
+        try {
+          // Force refresh from database
+          const { data: userData, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', user.id)
+            .single()
+          
+          if (error) {
+            console.error('Error checking premium status:', error)
+            return false
+          }
+          
+          console.log('Current user data:', userData)
+          
+          // Update profile state immediately if premium status changed
+          if (userData.is_premium !== previousPremiumStatus) {
+            console.log('✅ Premium status changed! Updating profile...')
+            setProfile(userData)
+            previousPremiumStatus = userData.is_premium
+            
+            if (userData.is_premium) {
+              console.log('🎉 User is now premium!')
+              return true // Stop checking
+            }
+          }
+          
+          if (attempts >= maxAttempts) {
+            console.log('❌ Max attempts reached, stopping premium status checks')
+            return true // Stop checking
+          }
+          
+          return false // Continue checking
+        } catch (error) {
+          console.error('Error in premium status check:', error)
+          return false
+        }
       }
       
-      refreshImmediately()
+      // Start checking immediately
+      checkPremiumStatus()
       
-      // Set up periodic refresh for the first 30 seconds
-      let attempts = 0
-      const maxAttempts = 15
-      
+      // Then check every 2 seconds
       const intervalId = setInterval(async () => {
-        attempts++
-        await fetchProfile(user.id)
-        
-        if (attempts >= maxAttempts) {
+        const shouldStop = await checkPremiumStatus()
+        if (shouldStop) {
           clearInterval(intervalId)
         }
       }, 2000)
       
+      // Cleanup interval on unmount
       return () => clearInterval(intervalId)
     }
-  }, [user])
+  }, [user, profile?.is_premium])
 
   async function fetchProfile(userId: string) {
     try {
+      console.log('Fetching profile for user:', userId)
+      
       const { data: profileData, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', userId)
-        .maybeSingle()
+        .single()
 
       if (error) {
         console.error('Error fetching profile:', error)
         setLoading(false)
         return
       }
+
+      console.log('Profile data fetched:', profileData)
 
       if (profileData === null) {
         // Profile doesn't exist, create it
@@ -128,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = async () => {
     if (user) {
+      console.log('Manual profile refresh requested')
       await fetchProfile(user.id)
     }
   }
