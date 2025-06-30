@@ -20,109 +20,6 @@ interface IdeaWithAuthor extends Idea {
   comment_count?: number
 }
 
-// Dummy data for demonstration with ownership modes
-const dummyIdeasData: IdeaWithAuthor[] = [
-  {
-    id: 'dummy-1',
-    title: "Smart Plant Monitor",
-    description: "AI-powered plant care system that monitors soil moisture, light levels, and sends care reminders to your phone. Perfect for busy plant parents who want to keep their green friends healthy.",
-    tags: ["IoT", "AI", "Plants", "Smart Home"],
-    image: "https://images.pexels.com/photos/1072824/pexels-photo-1072824.jpeg?auto=compress&cs=tinysrgb&w=500",
-    is_nft: false,
-    minted_by: null,
-    is_blurred: false,
-    created_by: 'dummy-user-1',
-    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    remix_of_id: null,
-    ownership_mode: 'forsale' as OwnershipMode,
-    author: {
-      id: 'dummy-user-1',
-      username: 'plantlover',
-      bio: 'IoT enthusiast and plant parent',
-      email: 'plant@example.com',
-      avatar: null,
-      avatar_url: null,
-      wallet_address: null,
-      created_at: new Date().toISOString(),
-      is_premium: false,
-      role: 'creator'
-    },
-    upvote_count: 24,
-    user_upvoted: false,
-    comment_count: 8
-  },
-  {
-    id: 'dummy-2',
-    title: "AI Music Synthesizer",
-    description: "Generate unique melodies and beats using machine learning algorithms trained on various music genres. Create professional-quality music without any musical background.",
-    tags: ["AI", "Music", "Creative", "Machine Learning"],
-    image: "https://images.pexels.com/photos/1751731/pexels-photo-1751731.jpeg?auto=compress&cs=tinysrgb&w=500",
-    is_nft: true,
-    minted_by: 'dummy-user-2',
-    is_blurred: false,
-    created_by: 'dummy-user-3',
-    created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    remix_of_id: null,
-    ownership_mode: 'partnership' as OwnershipMode,
-    author: {
-      id: 'dummy-user-3',
-      username: 'musicmaker',
-      bio: 'AI researcher and music producer',
-      email: 'music@example.com',
-      avatar: null,
-      avatar_url: null,
-      wallet_address: null,
-      created_at: new Date().toISOString(),
-      is_premium: true,
-      role: 'creator'
-    },
-    minted_user: {
-      id: 'dummy-user-2',
-      username: 'investor1',
-      bio: 'Music industry investor',
-      email: 'investor@example.com',
-      avatar: null,
-      avatar_url: null,
-      wallet_address: '0x1234...5678',
-      created_at: new Date().toISOString(),
-      is_premium: true,
-      role: 'investor'
-    },
-    upvote_count: 42,
-    user_upvoted: false,
-    comment_count: 15
-  },
-  {
-    id: 'dummy-3',
-    title: "Virtual Reality Fitness",
-    description: "Immersive workout experiences that make exercise fun through gamification and virtual environments. Turn your living room into a gym, adventure course, or sports arena.",
-    tags: ["VR", "Fitness", "Gaming", "Health"],
-    image: "https://images.pexels.com/photos/2294361/pexels-photo-2294361.jpeg?auto=compress&cs=tinysrgb&w=500",
-    is_nft: false,
-    minted_by: null,
-    is_blurred: true,
-    created_by: 'dummy-user-4',
-    created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    remix_of_id: null,
-    ownership_mode: 'showcase' as OwnershipMode,
-    author: {
-      id: 'dummy-user-4',
-      username: 'fitnessguru',
-      bio: 'VR developer and fitness enthusiast',
-      email: 'fitness@example.com',
-      avatar: null,
-      avatar_url: null,
-      wallet_address: null,
-      created_at: new Date().toISOString(),
-      is_premium: true,
-      role: 'creator'
-    },
-    upvote_count: 18,
-    user_upvoted: false,
-    comment_count: 6
-  }
-]
-
 export function IdeaFeed() {
   const { user, profile } = useAuth()
   const { showToast } = useToast()
@@ -179,7 +76,7 @@ export function IdeaFeed() {
 
       if (commentsError) throw commentsError
 
-      const realIdeasWithInteractions = ideasData?.map(idea => {
+      const ideasWithInteractions = ideasData?.map(idea => {
         const upvotes = upvotesData?.filter(upvote => upvote.idea_id === idea.id) || []
         const comments = commentsData?.filter(comment => comment.idea_id === idea.id) || []
         
@@ -191,11 +88,10 @@ export function IdeaFeed() {
         }
       }) || []
 
-      const combinedIdeas = [...realIdeasWithInteractions, ...dummyIdeasData]
-      setIdeas(combinedIdeas)
+      setIdeas(ideasWithInteractions)
     } catch (error) {
       console.error('Error fetching ideas:', error)
-      setIdeas(dummyIdeasData)
+      showToast('Failed to load ideas', 'error')
     } finally {
       setLoading(false)
     }
@@ -230,30 +126,46 @@ export function IdeaFeed() {
   ).sort()
 
   const canViewFullIdea = (idea: IdeaWithAuthor) => {
+    // Showcase ideas are always fully visible
+    if (idea.ownership_mode === 'showcase') {
+      return true
+    }
+    
+    // Partnership ideas with NDA protection show partial content
+    if (idea.ownership_mode === 'partnership' && idea.is_blurred) {
+      return idea.created_by === user?.id || idea.minted_by === user?.id
+    }
+    
+    // For sale ideas with blur protection
+    if (idea.ownership_mode === 'forsale' && idea.is_blurred) {
+      return idea.created_by === user?.id || idea.minted_by === user?.id
+    }
+    
+    // Default: show full content if not blurred
     return !idea.is_blurred || idea.created_by === user?.id || idea.minted_by === user?.id
   }
 
   // Only investors can purchase ideas
   const canPurchaseIdea = (idea: IdeaWithAuthor) => {
-    return user && profile?.role === 'investor' && idea.ownership_mode === 'forsale' && !idea.minted_by && idea.created_by !== user.id && !idea.id.startsWith('dummy-')
+    return user && profile?.role === 'investor' && idea.ownership_mode === 'forsale' && !idea.minted_by && idea.created_by !== user.id
   }
 
   // Only investors can request partnerships
   const canRequestPartnership = (idea: IdeaWithAuthor) => {
-    return user && profile?.role === 'investor' && idea.ownership_mode === 'partnership' && idea.created_by !== user.id && !idea.id.startsWith('dummy-')
+    return user && profile?.role === 'investor' && idea.ownership_mode === 'partnership' && idea.created_by !== user.id
   }
 
   const canEditIdea = (idea: IdeaWithAuthor) => {
-    return user && idea.created_by === user.id && !idea.id.startsWith('dummy-')
+    return user && idea.created_by === user.id
   }
 
   // Only creators can remix ideas (and not their own)
   const canRemixIdea = (idea: IdeaWithAuthor) => {
-    return user && profile?.role === 'creator' && idea.created_by !== user.id && !idea.id.startsWith('dummy-')
+    return user && profile?.role === 'creator' && idea.created_by !== user.id
   }
 
   const handlePurchase = async (idea: IdeaWithAuthor) => {
-    if (!user || idea.id.startsWith('dummy-')) return
+    if (!user) return
     
     setPurchasing(true)
     try {
@@ -279,8 +191,8 @@ export function IdeaFeed() {
   }
 
   const handleToggleUpvote = async (idea: IdeaWithAuthor) => {
-    if (!user || idea.id.startsWith('dummy-')) {
-      showToast('This is demo data. Sign up to interact with real ideas!', 'info')
+    if (!user) {
+      showToast('Please sign in to upvote ideas', 'info')
       return
     }
 
@@ -388,234 +300,234 @@ export function IdeaFeed() {
         availableTags={availableTags}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredIdeas.map((idea) => {
-          const ownershipBadge = getOwnershipBadge(idea.ownership_mode)
-          const OwnershipIcon = ownershipBadge.icon
-
-          return (
-            <div
-              key={idea.id}
-              className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 hover:border-cyan-500/30 transition-all duration-300 overflow-hidden group"
-            >
-              {idea.image && (
-                <div className="aspect-video overflow-hidden">
-                  <img
-                    src={idea.image}
-                    alt={idea.title}
-                    className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${
-                      !canViewFullIdea(idea) ? 'blur-sm' : ''
-                    }`}
-                  />
-                </div>
-              )}
-              
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-xl font-semibold text-white group-hover:text-cyan-400 transition-colors duration-300 flex-1">
-                    {idea.title}
-                  </h3>
-                  <div className="flex items-center space-x-2 ml-2">
-                    {idea.remix_of_id && (
-                      <div className="bg-blue-500/20 p-1 rounded-md">
-                        <GitBranch className="w-4 h-4 text-blue-400" />
-                      </div>
-                    )}
-                    {idea.is_nft && (
-                      <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-1 rounded-md">
-                        <Star className="w-4 h-4 text-white" />
-                      </div>
-                    )}
-                    {idea.is_blurred && !canViewFullIdea(idea) && (
-                      <div className="bg-orange-500/20 p-1 rounded-md">
-                        <Shield className="w-4 h-4 text-orange-400" />
-                      </div>
-                    )}
-                    {idea.id.startsWith('dummy-') && (
-                      <div className="bg-cyan-500/20 p-1 rounded-md">
-                        <span className="text-xs text-cyan-400 font-medium px-1">DEMO</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Ownership Mode Badge */}
-                <div className="mb-3">
-                  <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${ownershipBadge.className}`}>
-                    <OwnershipIcon className="w-3 h-3 mr-1" />
-                    {ownershipBadge.text}
-                  </span>
-                </div>
-
-                {idea.minted_by && (
-                  <div className="mb-3">
-                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30">
-                      <Star className="w-3 h-3 mr-1" />
-                      Owned by {getMintedByDisplay(idea)}
-                    </span>
-                  </div>
-                )}
-
-                <p className={`text-gray-300 mb-4 line-clamp-3 ${
-                  !canViewFullIdea(idea) ? 'blur-sm select-none' : ''
-                }`}>
-                  {idea.description}
-                </p>
-
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {idea.tags?.slice(0, 3).map((tag, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                    >
-                      <Tag className="w-3 h-3 mr-1" />
-                      {tag}
-                    </span>
-                  ))}
-                  {idea.tags && idea.tags.length > 3 && (
-                    <span className="text-xs text-gray-400">
-                      +{idea.tags.length - 3} more
-                    </span>
-                  )}
-                </div>
-
-                {/* Interaction Bar */}
-                <div className="flex items-center justify-between mb-4 text-sm">
-                  <div className="flex items-center space-x-4">
-                    <button
-                      onClick={() => handleToggleUpvote(idea)}
-                      disabled={!user}
-                      className={`flex items-center space-x-1 transition-colors duration-300 ${
-                        idea.user_upvoted
-                          ? 'text-red-400'
-                          : 'text-gray-400 hover:text-red-400'
-                      } disabled:opacity-50`}
-                    >
-                      <Heart className={`w-4 h-4 ${idea.user_upvoted ? 'fill-current' : ''}`} />
-                      <span>{idea.upvote_count || 0}</span>
-                    </button>
-
-                    <div className="flex items-center space-x-1 text-gray-400">
-                      <MessageCircle className="w-4 h-4" />
-                      <span>{idea.comment_count || 0}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2 text-gray-400">
-                    <div className="w-5 h-5 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full flex items-center justify-center text-xs text-white font-medium">
-                      {idea.author.username?.[0]?.toUpperCase() || 'U'}
-                    </div>
-                    <span className="text-xs">{idea.author.username || 'Anonymous'}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <button
-                    onClick={() => setSelectedIdea(idea)}
-                    className="w-full bg-gradient-to-r from-cyan-500/20 to-purple-500/20 hover:from-cyan-500/30 hover:to-purple-500/30 text-cyan-400 py-2 px-4 rounded-lg transition-all duration-300 border border-cyan-500/30 hover:border-cyan-400/50"
-                  >
-                    {canViewFullIdea(idea) ? (
-                      <span className="flex items-center justify-center space-x-2">
-                        <Eye className="w-4 h-4" />
-                        <span>View Details</span>
-                      </span>
-                    ) : (
-                      <span className="flex items-center justify-center space-x-2">
-                        <EyeOff className="w-4 h-4" />
-                        <span>Premium Content</span>
-                      </span>
-                    )}
-                  </button>
-
-                  {/* Action Buttons - Different for creators vs investors */}
-                  {canEditIdea(idea) ? (
-                    // Own ideas - show edit/delete
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => setEditModal(idea)}
-                        className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
-                      >
-                        <Edit className="w-4 h-4" />
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        onClick={() => setDeleteModal(idea)}
-                        className="bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-3 rounded-lg transition-all duration-300 border border-red-500/30 hover:border-red-400/50 flex items-center justify-center space-x-2 text-sm"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  ) : (
-                    // Other people's ideas
-                    <div className="space-y-2">
-                      {/* Creators can only remix */}
-                      {profile?.role === 'creator' && canRemixIdea(idea) && (
-                        <button
-                          onClick={() => idea.id.startsWith('dummy-') ? showToast('This is demo data. Upload real ideas to remix!', 'info') : setRemixModal(idea)}
-                          className="w-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
-                        >
-                          <GitBranch className="w-4 h-4" />
-                          <span>Remix This Idea</span>
-                        </button>
-                      )}
-
-                      {/* Investors can buy or request partnerships */}
-                      {profile?.role === 'investor' && (
-                        <div className="grid grid-cols-1 gap-2">
-                          {canPurchaseIdea(idea) && (
-                            <button
-                              onClick={() => setPurchaseModal(idea)}
-                              className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 text-green-400 py-2 px-3 rounded-lg transition-all duration-300 border border-green-500/30 hover:border-green-400/50 flex items-center justify-center space-x-2 text-sm"
-                            >
-                              <ShoppingCart className="w-4 h-4" />
-                              <span>Purchase Idea</span>
-                            </button>
-                          )}
-
-                          {canRequestPartnership(idea) && (
-                            <button
-                              onClick={() => idea.id.startsWith('dummy-') ? showToast('This is demo data. Sign up to request real partnerships!', 'info') : setPartnershipModal(idea)}
-                              className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
-                            >
-                              <Handshake className="w-4 h-4" />
-                              <span>Request Partnership</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Showcase only message */}
-                      {idea.ownership_mode === 'showcase' && idea.created_by !== user?.id && (
-                        <div className="text-center py-2 text-gray-500 text-sm">
-                          {profile?.role === 'creator' 
-                            ? 'Showcase only - available for inspiration and remixing'
-                            : 'Showcase only - not available for purchase or partnership'
-                          }
-                        </div>
-                      )}
-
-                      {/* No actions available message for creators on for-sale/partnership ideas */}
-                      {profile?.role === 'creator' && idea.ownership_mode !== 'showcase' && !canRemixIdea(idea) && (
-                        <div className="text-center py-2 text-gray-500 text-sm">
-                          Available for investors only
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {filteredIdeas.length === 0 && !loading && (
+      {filteredIdeas.length === 0 && !loading ? (
         <div className="text-center py-12">
           <div className="bg-gray-800/50 rounded-xl p-8">
             <h3 className="text-xl font-semibold text-gray-300 mb-2">No ideas found</h3>
-            <p className="text-gray-400">Try adjusting your filters or check back later for new ideas!</p>
+            <p className="text-gray-400">
+              {ideas.length === 0 
+                ? "Be the first to share an innovative idea with the community!"
+                : "Try adjusting your filters or check back later for new ideas!"
+              }
+            </p>
           </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredIdeas.map((idea) => {
+            const ownershipBadge = getOwnershipBadge(idea.ownership_mode)
+            const OwnershipIcon = ownershipBadge.icon
+
+            return (
+              <div
+                key={idea.id}
+                className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 hover:border-cyan-500/30 transition-all duration-300 overflow-hidden group"
+              >
+                {idea.image && (
+                  <div className="aspect-video overflow-hidden">
+                    <img
+                      src={idea.image}
+                      alt={idea.title}
+                      className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${
+                        !canViewFullIdea(idea) ? 'blur-sm' : ''
+                      }`}
+                    />
+                  </div>
+                )}
+                
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="text-xl font-semibold text-white group-hover:text-cyan-400 transition-colors duration-300 flex-1">
+                      {idea.title}
+                    </h3>
+                    <div className="flex items-center space-x-2 ml-2">
+                      {idea.remix_of_id && (
+                        <div className="bg-blue-500/20 p-1 rounded-md">
+                          <GitBranch className="w-4 h-4 text-blue-400" />
+                        </div>
+                      )}
+                      {idea.is_nft && (
+                        <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-1 rounded-md">
+                          <Star className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                      {idea.is_blurred && !canViewFullIdea(idea) && (
+                        <div className="bg-orange-500/20 p-1 rounded-md">
+                          <Shield className="w-4 h-4 text-orange-400" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Ownership Mode Badge */}
+                  <div className="mb-3">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${ownershipBadge.className}`}>
+                      <OwnershipIcon className="w-3 h-3 mr-1" />
+                      {ownershipBadge.text}
+                    </span>
+                  </div>
+
+                  {idea.minted_by && (
+                    <div className="mb-3">
+                      <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30">
+                        <Star className="w-3 h-3 mr-1" />
+                        Owned by {getMintedByDisplay(idea)}
+                      </span>
+                    </div>
+                  )}
+
+                  <p className={`text-gray-300 mb-4 line-clamp-3 ${
+                    !canViewFullIdea(idea) ? 'blur-sm select-none' : ''
+                  }`}>
+                    {idea.description}
+                  </p>
+
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {idea.tags?.slice(0, 3).map((tag, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                      >
+                        <Tag className="w-3 h-3 mr-1" />
+                        {tag}
+                      </span>
+                    ))}
+                    {idea.tags && idea.tags.length > 3 && (
+                      <span className="text-xs text-gray-400">
+                        +{idea.tags.length - 3} more
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Interaction Bar */}
+                  <div className="flex items-center justify-between mb-4 text-sm">
+                    <div className="flex items-center space-x-4">
+                      <button
+                        onClick={() => handleToggleUpvote(idea)}
+                        disabled={!user}
+                        className={`flex items-center space-x-1 transition-colors duration-300 ${
+                          idea.user_upvoted
+                            ? 'text-red-400'
+                            : 'text-gray-400 hover:text-red-400'
+                        } disabled:opacity-50`}
+                      >
+                        <Heart className={`w-4 h-4 ${idea.user_upvoted ? 'fill-current' : ''}`} />
+                        <span>{idea.upvote_count || 0}</span>
+                      </button>
+
+                      <div className="flex items-center space-x-1 text-gray-400">
+                        <MessageCircle className="w-4 h-4" />
+                        <span>{idea.comment_count || 0}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 text-gray-400">
+                      <div className="w-5 h-5 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full flex items-center justify-center text-xs text-white font-medium">
+                        {idea.author.username?.[0]?.toUpperCase() || 'U'}
+                      </div>
+                      <span className="text-xs">{idea.author.username || 'Anonymous'}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setSelectedIdea(idea)}
+                      className="w-full bg-gradient-to-r from-cyan-500/20 to-purple-500/20 hover:from-cyan-500/30 hover:to-purple-500/30 text-cyan-400 py-2 px-4 rounded-lg transition-all duration-300 border border-cyan-500/30 hover:border-cyan-400/50"
+                    >
+                      {canViewFullIdea(idea) ? (
+                        <span className="flex items-center justify-center space-x-2">
+                          <Eye className="w-4 h-4" />
+                          <span>View Details</span>
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-center space-x-2">
+                          <EyeOff className="w-4 h-4" />
+                          <span>Premium Content</span>
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Action Buttons - Different for creators vs investors */}
+                    {canEditIdea(idea) ? (
+                      // Own ideas - show edit/delete
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => setEditModal(idea)}
+                          className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
+                        >
+                          <Edit className="w-4 h-4" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => setDeleteModal(idea)}
+                          className="bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-3 rounded-lg transition-all duration-300 border border-red-500/30 hover:border-red-400/50 flex items-center justify-center space-x-2 text-sm"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    ) : (
+                      // Other people's ideas
+                      <div className="space-y-2">
+                        {/* Creators can only remix */}
+                        {profile?.role === 'creator' && canRemixIdea(idea) && (
+                          <button
+                            onClick={() => setRemixModal(idea)}
+                            className="w-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
+                          >
+                            <GitBranch className="w-4 h-4" />
+                            <span>Remix This Idea</span>
+                          </button>
+                        )}
+
+                        {/* Investors can buy or request partnerships */}
+                        {profile?.role === 'investor' && (
+                          <div className="grid grid-cols-1 gap-2">
+                            {canPurchaseIdea(idea) && (
+                              <button
+                                onClick={() => setPurchaseModal(idea)}
+                                className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 text-green-400 py-2 px-3 rounded-lg transition-all duration-300 border border-green-500/30 hover:border-green-400/50 flex items-center justify-center space-x-2 text-sm"
+                              >
+                                <ShoppingCart className="w-4 h-4" />
+                                <span>Purchase Idea</span>
+                              </button>
+                            )}
+
+                            {canRequestPartnership(idea) && (
+                              <button
+                                onClick={() => setPartnershipModal(idea)}
+                                className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
+                              >
+                                <Handshake className="w-4 h-4" />
+                                <span>Request Partnership</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Showcase only message */}
+                        {idea.ownership_mode === 'showcase' && idea.created_by !== user?.id && (
+                          <div className="text-center py-2 text-gray-500 text-sm">
+                            {profile?.role === 'creator' 
+                              ? 'Showcase only - available for inspiration and remixing'
+                              : 'Showcase only - not available for purchase or partnership'
+                            }
+                          </div>
+                        )}
+
+                        {/* No actions available message for creators on for-sale/partnership ideas */}
+                        {profile?.role === 'creator' && idea.ownership_mode !== 'showcase' && !canRemixIdea(idea) && (
+                          <div className="text-center py-2 text-gray-500 text-sm">
+                            Available for investors only
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -686,27 +598,15 @@ export function IdeaFeed() {
           onClose={() => setSelectedIdea(null)}
           onPurchase={(idea) => {
             setSelectedIdea(null)
-            if (!idea.id.startsWith('dummy-')) {
-              setPurchaseModal(idea)
-            } else {
-              showToast('This is demo data. Sign up to purchase real ideas!', 'info')
-            }
+            setPurchaseModal(idea)
           }}
           onPartnership={(idea) => {
             setSelectedIdea(null)
-            if (!idea.id.startsWith('dummy-')) {
-              setPartnershipModal(idea)
-            } else {
-              showToast('This is demo data. Sign up to request real partnerships!', 'info')
-            }
+            setPartnershipModal(idea)
           }}
           onRemix={(idea) => {
             setSelectedIdea(null)
-            if (!idea.id.startsWith('dummy-')) {
-              setRemixModal(idea)
-            } else {
-              showToast('This is demo data. Upload real ideas to remix!', 'info')
-            }
+            setRemixModal(idea)
           }}
         />
       )}
