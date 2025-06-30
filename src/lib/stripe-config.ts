@@ -22,6 +22,7 @@ export const STRIPE_CONFIG = {
       description: 'Upload up to 300 ideas over 3 months. Best for active creators.',
       features: [
         '300 ideas per quarter',
+        'Partnership mode with NDA protection',
         'Idea protection & blur',
         'Premium support',
         'Advanced analytics',
@@ -36,6 +37,7 @@ export const STRIPE_CONFIG = {
       description: 'One-time payment for unlimited idea uploads and protection forever.',
       features: [
         'Unlimited ideas forever',
+        'Partnership mode with NDA protection',
         'Idea protection & blur',
         'Premium support',
         'Advanced analytics',

@@ -16,7 +16,9 @@ import {
   User as UserIcon,
   DollarSign,
   Handshake,
-  Users
+  Users,
+  Lock,
+  Eye
 } from 'lucide-react'
 import type { Idea, User, Comment, Upvote, OwnershipMode } from '../lib/types'
 
@@ -65,7 +67,34 @@ export function IdeaDetail({ idea, onClose, onPurchase, onPartnership, onRemix }
   }, [idea.id])
 
   const canViewFullIdea = () => {
+    // Showcase ideas are always fully visible
+    if (idea.ownership_mode === 'showcase') {
+      return true
+    }
+    
+    // Partnership ideas with NDA protection show partial content
+    if (idea.ownership_mode === 'partnership' && idea.is_blurred) {
+      // Show full content to creator or owner
+      return idea.created_by === user?.id || idea.minted_by === user?.id
+    }
+    
+    // For sale ideas with blur protection
+    if (idea.ownership_mode === 'forsale' && idea.is_blurred) {
+      return idea.created_by === user?.id || idea.minted_by === user?.id
+    }
+    
+    // Default: show full content if not blurred
     return !idea.is_blurred || idea.created_by === user?.id || idea.minted_by === user?.id
+  }
+
+  const getPartialDescription = (description: string) => {
+    const sentences = description.split(/[.!?]+/).filter(s => s.trim().length > 0)
+    const firstThreeSentences = sentences.slice(0, 3).join('. ') + (sentences.length > 3 ? '.' : '')
+    return firstThreeSentences
+  }
+
+  const shouldShowPartialContent = () => {
+    return idea.ownership_mode === 'partnership' && idea.is_blurred && !canViewFullIdea()
   }
 
   // Only investors can purchase ideas
@@ -298,9 +327,7 @@ export function IdeaDetail({ idea, onClose, onPurchase, onPartnership, onRemix }
               <img
                 src={idea.image}
                 alt={idea.title}
-                className={`w-full h-full object-cover ${
-                  !canViewFullIdea() ? 'blur-sm' : ''
-                }`}
+                className="w-full h-full object-cover"
               />
             </div>
           )}
@@ -309,11 +336,24 @@ export function IdeaDetail({ idea, onClose, onPurchase, onPartnership, onRemix }
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-semibold text-gray-300 mb-3">Description</h3>
-              <p className={`text-gray-300 leading-relaxed ${
-                !canViewFullIdea() ? 'blur-sm select-none' : ''
-              }`}>
-                {idea.description}
-              </p>
+              <div className="relative">
+                <p className="text-gray-300 leading-relaxed">
+                  {shouldShowPartialContent() ? getPartialDescription(idea.description) : idea.description}
+                </p>
+                
+                {/* Partial content overlay for partnership ideas */}
+                {shouldShowPartialContent() && (
+                  <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Lock className="w-5 h-5 text-blue-400" />
+                      <span className="text-blue-400 font-medium">NDA Required</span>
+                    </div>
+                    <p className="text-blue-300/80 text-sm">
+                      This partnership opportunity requires an NDA to view full details. Request partnership to access complete information and collaborate with the creator.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Tags */}
@@ -515,7 +555,12 @@ export function IdeaDetail({ idea, onClose, onPurchase, onPartnership, onRemix }
                     NFT
                   </span>
                 )}
-                {idea.is_blurred && (
+                {idea.is_blurred && idea.ownership_mode === 'partnership' && (
+                  <span className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-lg text-sm font-medium border border-blue-500/30">
+                    NDA Protected
+                  </span>
+                )}
+                {idea.is_blurred && idea.ownership_mode === 'forsale' && (
                   <span className="bg-orange-500/20 text-orange-400 px-3 py-1 rounded-lg text-sm font-medium border border-orange-500/30">
                     Protected
                   </span>

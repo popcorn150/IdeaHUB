@@ -2,11 +2,11 @@ import React, { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { Navigate } from 'react-router-dom'
-import { Upload, Tag, Eye, EyeOff, Star, Image, X, DollarSign, Handshake, Users } from 'lucide-react'
+import { Upload, Tag, Eye, EyeOff, Star, Image, X, DollarSign, Handshake, Users, Crown, Lock } from 'lucide-react'
 import type { OwnershipMode } from '../lib/types'
 
 export function IdeaUpload() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [formData, setFormData] = useState({
@@ -33,6 +33,9 @@ export function IdeaUpload() {
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0)
 
+      // Only allow blurring for partnership mode (not showcase)
+      const shouldBlur = formData.isBlurred && formData.ownershipMode === 'partnership'
+
       const { error } = await supabase
         .from('ideas')
         .insert({
@@ -41,7 +44,7 @@ export function IdeaUpload() {
           tags: tagsArray,
           image: formData.image || null,
           is_nft: formData.isNFT,
-          is_blurred: formData.isBlurred,
+          is_blurred: shouldBlur,
           created_by: user.id,
           minted_by: formData.isNFT ? user.id : null,
           remix_of_id: null,
@@ -83,7 +86,8 @@ export function IdeaUpload() {
       description: 'I want to sell full rights to this idea for a one-time fee',
       icon: DollarSign,
       gradient: 'from-green-500 to-emerald-500',
-      features: ['One-time payment', 'Full ownership transfer', 'Immediate payout']
+      features: ['One-time payment', 'Full ownership transfer', 'Immediate payout'],
+      requiresPremium: false
     },
     {
       id: 'partnership' as OwnershipMode,
@@ -91,7 +95,8 @@ export function IdeaUpload() {
       description: 'I want to collaborate and earn royalties while building this',
       icon: Handshake,
       gradient: 'from-blue-500 to-cyan-500',
-      features: ['Ongoing collaboration', 'Revenue sharing', 'Joint development']
+      features: ['Ongoing collaboration', 'Revenue sharing', 'Joint development', 'NDA protection'],
+      requiresPremium: true
     },
     {
       id: 'showcase' as OwnershipMode,
@@ -99,7 +104,8 @@ export function IdeaUpload() {
       description: 'Not for sale, just for feedback or exposure',
       icon: Users,
       gradient: 'from-purple-500 to-pink-500',
-      features: ['Community feedback', 'Portfolio building', 'No monetization']
+      features: ['Community feedback', 'Portfolio building', 'No monetization'],
+      requiresPremium: false
     }
   ]
 
@@ -161,35 +167,60 @@ export function IdeaUpload() {
               {ownershipOptions.map((option) => {
                 const Icon = option.icon
                 const isSelected = formData.ownershipMode === option.id
+                const isDisabled = option.requiresPremium && !profile?.is_premium
                 
                 return (
                   <button
                     key={option.id}
                     type="button"
-                    onClick={() => setFormData({ ...formData, ownershipMode: option.id })}
+                    onClick={() => {
+                      if (!isDisabled) {
+                        setFormData({ ...formData, ownershipMode: option.id })
+                      }
+                    }}
+                    disabled={isDisabled}
                     className={`relative p-6 rounded-xl border-2 transition-all duration-300 text-left ${
-                      isSelected
+                      isDisabled
+                        ? 'border-gray-700 bg-gray-800/30 opacity-60 cursor-not-allowed'
+                        : isSelected
                         ? 'border-cyan-500 bg-cyan-500/10'
                         : 'border-gray-600 bg-gray-700/30 hover:border-gray-500'
                     }`}
                   >
-                    <div className={`bg-gradient-to-r ${option.gradient} p-3 rounded-lg w-12 h-12 flex items-center justify-center mb-4`}>
+                    {option.requiresPremium && (
+                      <div className="absolute top-3 right-3">
+                        {profile?.is_premium ? (
+                          <Crown className="w-5 h-5 text-purple-400" />
+                        ) : (
+                          <Lock className="w-5 h-5 text-gray-500" />
+                        )}
+                      </div>
+                    )}
+                    
+                    <div className={`bg-gradient-to-r ${option.gradient} p-3 rounded-lg w-12 h-12 flex items-center justify-center mb-4 ${isDisabled ? 'opacity-50' : ''}`}>
                       <Icon className="w-6 h-6 text-white" />
                     </div>
                     
-                    <h3 className="text-lg font-bold text-white mb-2">{option.title}</h3>
-                    <p className="text-gray-400 text-sm mb-4">{option.description}</p>
+                    <h3 className={`text-lg font-bold mb-2 ${isDisabled ? 'text-gray-500' : 'text-white'}`}>
+                      {option.title}
+                      {option.requiresPremium && !profile?.is_premium && (
+                        <span className="text-xs text-purple-400 ml-2">Pro Only</span>
+                      )}
+                    </h3>
+                    <p className={`text-sm mb-4 ${isDisabled ? 'text-gray-600' : 'text-gray-400'}`}>
+                      {option.description}
+                    </p>
                     
                     <ul className="space-y-1">
                       {option.features.map((feature, index) => (
-                        <li key={index} className="flex items-center space-x-2 text-xs text-gray-300">
-                          <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full"></div>
+                        <li key={index} className={`flex items-center space-x-2 text-xs ${isDisabled ? 'text-gray-600' : 'text-gray-300'}`}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${isDisabled ? 'bg-gray-600' : 'bg-cyan-400'}`}></div>
                           <span>{feature}</span>
                         </li>
                       ))}
                     </ul>
 
-                    {isSelected && (
+                    {isSelected && !isDisabled && (
                       <div className="absolute top-4 right-4 bg-cyan-500 rounded-full p-1">
                         <div className="w-2 h-2 bg-white rounded-full"></div>
                       </div>
@@ -198,6 +229,19 @@ export function IdeaUpload() {
                 )
               })}
             </div>
+            
+            {/* Premium upgrade notice */}
+            {!profile?.is_premium && (
+              <div className="mt-4 p-4 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <Crown className="w-5 h-5 text-purple-400" />
+                  <span className="text-purple-400 font-medium">Upgrade to Pro</span>
+                </div>
+                <p className="text-purple-300/80 text-sm mt-1">
+                  Partnership mode with NDA protection is available for Pro members. Upgrade to unlock collaboration features and revenue sharing opportunities.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Tags */}
@@ -300,29 +344,31 @@ export function IdeaUpload() {
               </div>
             </div>
 
-            {/* Blur Toggle */}
-            <div className="bg-gray-700/30 rounded-xl p-4 border border-gray-600/50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="bg-gradient-to-r from-orange-500 to-red-500 p-2 rounded-lg">
-                    {formData.isBlurred ? <EyeOff className="w-5 h-5 text-white" /> : <Eye className="w-5 h-5 text-white" />}
+            {/* Blur Toggle - Only for Partnership Mode */}
+            {formData.ownershipMode === 'partnership' && (
+              <div className="bg-gray-700/30 rounded-xl p-4 border border-gray-600/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-gradient-to-r from-orange-500 to-red-500 p-2 rounded-lg">
+                      {formData.isBlurred ? <EyeOff className="w-5 h-5 text-white" /> : <Eye className="w-5 h-5 text-white" />}
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-white">NDA Protection</h3>
+                      <p className="text-sm text-gray-400">Require NDA for full details</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-medium text-white">Protect Idea</h3>
-                    <p className="text-sm text-gray-400">Blur content for non-owners</p>
-                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={formData.isBlurred}
+                      onChange={(e) => setFormData({ ...formData, isBlurred: e.target.checked })}
+                    />
+                    <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-orange-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-orange-500 peer-checked:to-red-500"></div>
+                  </label>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={formData.isBlurred}
-                    onChange={(e) => setFormData({ ...formData, isBlurred: e.target.checked })}
-                  />
-                  <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-orange-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-orange-500 peer-checked:to-red-500"></div>
-                </label>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Submit Button */}
