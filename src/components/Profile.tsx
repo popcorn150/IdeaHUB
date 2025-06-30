@@ -52,68 +52,71 @@ export function Profile() {
     }
   }, [user])
 
-  // Check for payment success and monitor webhook status
+  // Enhanced payment success monitoring
   useEffect(() => {
     const success = searchParams.get('success')
     const canceled = searchParams.get('canceled')
     
     if (success === 'true' && user) {
+      console.log('Payment success detected in Profile component')
       setShowSuccessMessage(true)
       setWebhookStatus('checking')
       
-      // Start monitoring for premium status update
       let attempts = 0
-      const maxAttempts = 15 // 30 seconds total
+      const maxAttempts = 30 // 60 seconds total
       let wasAlreadyPremium = profile?.is_premium
       
       const checkPremiumStatus = async () => {
-        // Add null check for user
-        if (!user) {
-          console.log('User not available, skipping premium status check')
-          return false
-        }
-
         attempts++
-        console.log(`Checking premium status, attempt ${attempts}/${maxAttempts}`)
+        console.log(`Profile: Premium status check attempt ${attempts}/${maxAttempts}`)
         
-        await refreshProfile()
-        
-        // Check if user is now premium
-        const { data: userData, error } = await supabase
-          .from('users')
-          .select('is_premium')
-          .eq('id', user.id)
-          .single()
-        
-        if (error) {
-          console.error('Error checking premium status:', error)
-        } else {
-          console.log('Current premium status:', userData.is_premium)
+        try {
+          // Force refresh profile
+          await refreshProfile()
           
-          if (userData.is_premium && !wasAlreadyPremium) {
-            setWebhookStatus('working')
-            setShowProWelcome(true)
-            console.log('✅ Webhook successfully updated premium status!')
+          // Check current status from database
+          const { data: userData, error } = await supabase
+            .from('users')
+            .select('is_premium')
+            .eq('id', user.id)
+            .single()
+          
+          if (error) {
+            console.error('Error checking premium status:', error)
+          } else {
+            console.log('Profile: Current premium status:', userData.is_premium, 'Was premium:', wasAlreadyPremium)
             
-            // Show welcome message for 5 seconds
-            setTimeout(() => {
-              setShowProWelcome(false)
-            }, 5000)
-            
+            if (userData.is_premium && !wasAlreadyPremium) {
+              setWebhookStatus('working')
+              setShowProWelcome(true)
+              console.log('✅ Profile: Premium status activated!')
+              
+              // Show welcome message for 8 seconds
+              setTimeout(() => {
+                setShowProWelcome(false)
+              }, 8000)
+              
+              return true // Stop checking
+            }
+          }
+          
+          if (attempts >= maxAttempts) {
+            setWebhookStatus('failed')
+            console.log('❌ Profile: Max attempts reached for premium status check')
             return true // Stop checking
           }
+          
+          return false // Continue checking
+        } catch (error) {
+          console.error('Profile: Error in premium status check:', error)
+          return false
         }
-        
-        if (attempts >= maxAttempts) {
-          setWebhookStatus('failed')
-          console.log('❌ Webhook failed to update premium status after 30 seconds')
-          return true // Stop checking
-        }
-        
-        return false // Continue checking
       }
       
-      // Check immediately, then every 2 seconds
+      // Check immediately
+      checkPremiumStatus()
+      
+      // Then check every 2 seconds
       const intervalId = setInterval(async () => {
         const shouldStop = await checkPremiumStatus()
         if (shouldStop) {
@@ -121,13 +124,10 @@ export function Profile() {
         }
       }, 2000)
       
-      // Initial check
-      checkPremiumStatus()
-      
-      // Hide success message after 15 seconds
+      // Hide success message after 20 seconds
       setTimeout(() => {
         setShowSuccessMessage(false)
-      }, 15000)
+      }, 20000)
       
       // Cleanup interval on unmount
       return () => clearInterval(intervalId)
@@ -326,11 +326,11 @@ export function Profile() {
       {showProWelcome && (
         <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg p-6 mb-6 animate-in slide-in-from-top duration-500">
           <div className="flex items-center space-x-3">
-            <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-2 rounded-full">
+            <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-2 rounded-full animate-pulse">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white mb-1">Welcome to Idea-HUB Pro! 🎉</h3>
+              <h3 className="text-xl font-bold text-white mb-1">🎉 Welcome to Idea-HUB Pro!</h3>
               <p className="text-purple-300/80">
                 You now have access to partnership mode, NDA protection, and all premium features!
               </p>
@@ -383,7 +383,7 @@ export function Profile() {
             <div className="relative">
               {getAvatarDisplay()}
               {profile?.is_premium && (
-                <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full p-1">
+                <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full p-1 animate-pulse">
                   <Crown className="w-4 h-4 text-white" />
                 </div>
               )}
@@ -453,7 +453,7 @@ export function Profile() {
                       {profile?.username || 'Anonymous User'}
                     </h1>
                     {profile?.is_premium && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30 shadow-lg shadow-purple-400/25">
+                      <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30 shadow-lg shadow-purple-400/25 animate-in slide-in-from-right duration-500">
                         <Crown className="w-4 h-4 mr-1" />
                         Pro Member
                       </span>
