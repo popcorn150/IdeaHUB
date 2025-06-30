@@ -2,7 +2,8 @@ import React, { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { Navigate } from 'react-router-dom'
-import { Upload, Tag, Eye, EyeOff, Star, Image, X } from 'lucide-react'
+import { Upload, Tag, Eye, EyeOff, Star, Image, X, DollarSign, Handshake, Users } from 'lucide-react'
+import type { OwnershipMode } from '../lib/types'
 
 export function IdeaUpload() {
   const { user } = useAuth()
@@ -14,7 +15,8 @@ export function IdeaUpload() {
     tags: '',
     image: '',
     isNFT: false,
-    isBlurred: false
+    isBlurred: false,
+    ownershipMode: 'showcase' as OwnershipMode
   })
 
   if (!user) {
@@ -42,7 +44,8 @@ export function IdeaUpload() {
           is_blurred: formData.isBlurred,
           created_by: user.id,
           minted_by: formData.isNFT ? user.id : null,
-          remix_of_id: null
+          remix_of_id: null,
+          ownership_mode: formData.ownershipMode
         })
 
       if (error) throw error
@@ -54,7 +57,8 @@ export function IdeaUpload() {
         tags: '',
         image: '',
         isNFT: false,
-        isBlurred: false
+        isBlurred: false,
+        ownershipMode: 'showcase'
       })
 
       setTimeout(() => setSuccess(false), 3000)
@@ -72,13 +76,40 @@ export function IdeaUpload() {
     'https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg?auto=compress&cs=tinysrgb&w=500'
   ]
 
+  const ownershipOptions = [
+    {
+      id: 'forsale' as OwnershipMode,
+      title: 'For Sale',
+      description: 'I want to sell full rights to this idea for a one-time fee',
+      icon: DollarSign,
+      gradient: 'from-green-500 to-emerald-500',
+      features: ['One-time payment', 'Full ownership transfer', 'Immediate payout']
+    },
+    {
+      id: 'partnership' as OwnershipMode,
+      title: 'Partnership',
+      description: 'I want to collaborate and earn royalties while building this',
+      icon: Handshake,
+      gradient: 'from-blue-500 to-cyan-500',
+      features: ['Ongoing collaboration', 'Revenue sharing', 'Joint development']
+    },
+    {
+      id: 'showcase' as OwnershipMode,
+      title: 'Showcase Only',
+      description: 'Not for sale, just for feedback or exposure',
+      icon: Users,
+      gradient: 'from-purple-500 to-pink-500',
+      features: ['Community feedback', 'Portfolio building', 'No monetization']
+    }
+  ]
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent mb-2">
           Share Your Idea
         </h1>
-        <p className="text-gray-400">Upload your innovative idea and optionally mint it as an NFT</p>
+        <p className="text-gray-400">Upload your innovative idea and choose how you want to monetize or collaborate</p>
       </div>
 
       {success && (
@@ -88,7 +119,7 @@ export function IdeaUpload() {
       )}
 
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-8">
           {/* Title */}
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-2">
@@ -119,6 +150,54 @@ export function IdeaUpload() {
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
+          </div>
+
+          {/* Ownership Mode Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-4">
+              Ownership Type *
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {ownershipOptions.map((option) => {
+                const Icon = option.icon
+                const isSelected = formData.ownershipMode === option.id
+                
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, ownershipMode: option.id })}
+                    className={`relative p-6 rounded-xl border-2 transition-all duration-300 text-left ${
+                      isSelected
+                        ? 'border-cyan-500 bg-cyan-500/10'
+                        : 'border-gray-600 bg-gray-700/30 hover:border-gray-500'
+                    }`}
+                  >
+                    <div className={`bg-gradient-to-r ${option.gradient} p-3 rounded-lg w-12 h-12 flex items-center justify-center mb-4`}>
+                      <Icon className="w-6 h-6 text-white" />
+                    </div>
+                    
+                    <h3 className="text-lg font-bold text-white mb-2">{option.title}</h3>
+                    <p className="text-gray-400 text-sm mb-4">{option.description}</p>
+                    
+                    <ul className="space-y-1">
+                      {option.features.map((feature, index) => (
+                        <li key={index} className="flex items-center space-x-2 text-xs text-gray-300">
+                          <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full"></div>
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {isSelected && (
+                      <div className="absolute top-4 right-4 bg-cyan-500 rounded-full p-1">
+                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
           {/* Tags */}

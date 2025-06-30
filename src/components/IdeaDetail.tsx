@@ -13,9 +13,12 @@ import {
   Check, 
   X,
   GitBranch,
-  User as UserIcon
+  User as UserIcon,
+  DollarSign,
+  Handshake,
+  Users
 } from 'lucide-react'
-import type { Idea, User, Comment, Upvote } from '../lib/types'
+import type { Idea, User, Comment, Upvote, OwnershipMode } from '../lib/types'
 
 interface IdeaWithAuthor extends Idea {
   author: User
@@ -32,10 +35,11 @@ interface IdeaDetailProps {
   idea: IdeaWithAuthor
   onClose: () => void
   onPurchase?: (idea: IdeaWithAuthor) => void
+  onPartnership?: (idea: IdeaWithAuthor) => void
   onRemix?: (idea: IdeaWithAuthor) => void
 }
 
-export function IdeaDetail({ idea, onClose, onPurchase, onRemix }: IdeaDetailProps) {
+export function IdeaDetail({ idea, onClose, onPurchase, onPartnership, onRemix }: IdeaDetailProps) {
   const { user, profile } = useAuth()
   const [comments, setComments] = useState<CommentWithAuthor[]>([])
   const [upvotes, setUpvotes] = useState<Upvote[]>([])
@@ -55,7 +59,11 @@ export function IdeaDetail({ idea, onClose, onPurchase, onRemix }: IdeaDetailPro
   }
 
   const canPurchaseIdea = () => {
-    return user && !idea.minted_by && idea.created_by !== user.id
+    return user && idea.ownership_mode === 'forsale' && !idea.minted_by && idea.created_by !== user.id
+  }
+
+  const canRequestPartnership = () => {
+    return user && idea.ownership_mode === 'partnership' && idea.created_by !== user.id
   }
 
   const getMintedByDisplay = () => {
@@ -68,6 +76,29 @@ export function IdeaDetail({ idea, onClose, onPurchase, onRemix }: IdeaDetailPro
     }
     
     return '@Anonymous'
+  }
+
+  const getOwnershipBadge = (ownershipMode: OwnershipMode) => {
+    switch (ownershipMode) {
+      case 'forsale':
+        return {
+          icon: DollarSign,
+          text: 'For Sale',
+          className: 'bg-green-500/20 text-green-300 border-green-500/30'
+        }
+      case 'partnership':
+        return {
+          icon: Handshake,
+          text: 'Partnership',
+          className: 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+        }
+      case 'showcase':
+        return {
+          icon: Users,
+          text: 'Showcase Only',
+          className: 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+        }
+    }
   }
 
   async function fetchComments() {
@@ -185,6 +216,9 @@ export function IdeaDetail({ idea, onClose, onPurchase, onRemix }: IdeaDetailPro
     return `${Math.floor(diffInMinutes / 1440)}d ago`
   }
 
+  const ownershipBadge = getOwnershipBadge(idea.ownership_mode)
+  const OwnershipIcon = ownershipBadge.icon
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-gray-800 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -193,6 +227,14 @@ export function IdeaDetail({ idea, onClose, onPurchase, onRemix }: IdeaDetailPro
           <div className="flex items-start justify-between mb-6">
             <div className="flex-1">
               <h2 className="text-2xl font-bold text-white mb-2">{idea.title}</h2>
+              
+              {/* Ownership Mode Badge */}
+              <div className="mb-3">
+                <span className={`inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium border ${ownershipBadge.className}`}>
+                  <OwnershipIcon className="w-4 h-4 mr-2" />
+                  {ownershipBadge.text}
+                </span>
+              </div>
               
               {idea.remix_of_id && idea.original_idea && (
                 <div className="mb-3">
@@ -207,7 +249,7 @@ export function IdeaDetail({ idea, onClose, onPurchase, onRemix }: IdeaDetailPro
                 <div className="mb-3">
                   <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30">
                     <Star className="w-4 h-4 mr-2" />
-                    Minted by {getMintedByDisplay()}
+                    Owned by {getMintedByDisplay()}
                   </span>
                 </div>
               )}
@@ -296,6 +338,16 @@ export function IdeaDetail({ idea, onClose, onPurchase, onRemix }: IdeaDetailPro
                   </button>
                 )}
 
+                {canRequestPartnership() && onPartnership && (
+                  <button
+                    onClick={() => onPartnership(idea)}
+                    className="flex items-center space-x-2 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 text-blue-400 px-4 py-2 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50"
+                  >
+                    <Handshake className="w-4 h-4" />
+                    <span>Request Partnership</span>
+                  </button>
+                )}
+
                 {canPurchaseIdea() && onPurchase && (
                   <button
                     onClick={() => onPurchase(idea)}
@@ -304,6 +356,12 @@ export function IdeaDetail({ idea, onClose, onPurchase, onRemix }: IdeaDetailPro
                     <ShoppingCart className="w-4 h-4" />
                     <span>Purchase</span>
                   </button>
+                )}
+
+                {idea.ownership_mode === 'showcase' && (
+                  <div className="text-gray-500 text-sm px-4 py-2">
+                    Showcase only - not for sale
+                  </div>
                 )}
               </div>
             </div>
