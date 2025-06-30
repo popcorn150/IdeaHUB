@@ -355,9 +355,13 @@ export function Profile() {
                 </div>
               )}
               {editingProfile && (
-                <div className="absolute -bottom-1 -right-1">
-                  <label className="bg-cyan-500 rounded-full p-1 hover:bg-cyan-600 transition-colors duration-300 cursor-pointer">
-                    <Camera className="w-3 h-3 text-white" />
+                <div className="absolute -bottom-2 -right-2">
+                  <label className="bg-cyan-500 rounded-full p-2 hover:bg-cyan-600 transition-colors duration-300 cursor-pointer shadow-lg border-2 border-gray-800 flex items-center justify-center">
+                    {uploadingAvatar ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    ) : (
+                      <Camera className="w-4 h-4 text-white" />
+                    )}
                     <input
                       type="file"
                       accept="image/*"
@@ -366,11 +370,6 @@ export function Profile() {
                       disabled={uploadingAvatar}
                     />
                   </label>
-                  {uploadingAvatar && (
-                    <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
-                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
