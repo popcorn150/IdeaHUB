@@ -185,45 +185,57 @@ export function Profile() {
 
     setUploadingAvatar(true)
     try {
-      // Create a unique filename
+      // Create a unique filename with user ID for proper organization
       const fileExt = file.name.split('.').pop()
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`
       
-      // Try to upload directly to the avatars bucket
+      console.log('Uploading file:', fileName, 'Size:', file.size, 'Type:', file.type)
+      
+      // Upload to Supabase Storage with your "allow all" policy
       const { data, error } = await supabase.storage
         .from('avatars')
         .upload(fileName, file, {
           cacheControl: '3600',
-          upsert: false
+          upsert: true // Allow overwriting existing files
         })
 
       if (error) {
-        console.error('Upload error:', error)
+        console.error('Upload error details:', error)
         
         // Handle specific error cases
         if (error.message.includes('Bucket not found')) {
-          throw new Error('Avatar storage bucket not found. Please ensure the "avatars" bucket exists in your Supabase project.')
-        } else if (error.message.includes('not allowed')) {
-          throw new Error('Upload not allowed. Please check your storage policies.')
-        } else if (error.message.includes('size')) {
-          throw new Error('File too large. Please choose a smaller image.')
+          throw new Error('Avatar storage bucket not found. Please ensure the "avatars" bucket exists.')
+        } else if (error.message.includes('not allowed') || error.message.includes('policy')) {
+          throw new Error('Upload not allowed. Please check your storage policies in Supabase.')
+        } else if (error.message.includes('size') || error.message.includes('too large')) {
+          throw new Error('File too large. Please choose a smaller image (max 5MB).')
+        } else if (error.message.includes('mime') || error.message.includes('type')) {
+          throw new Error('File type not supported. Please use JPG, PNG, WebP, or GIF.')
         } else {
           throw new Error(`Upload failed: ${error.message}`)
         }
       }
 
-      // Get public URL
+      console.log('Upload successful:', data)
+
+      // Get public URL for the uploaded file
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(fileName)
 
+      console.log('Public URL:', publicUrl)
+
+      // Update the profile data with the new avatar URL
       setProfileData({ ...profileData, avatar_url: publicUrl })
       showToast('Avatar uploaded successfully!', 'success')
+      
     } catch (error: any) {
       console.error('Error uploading avatar:', error)
       showToast(error.message || 'Failed to upload avatar. Please try again.', 'error')
     } finally {
       setUploadingAvatar(false)
+      // Clear the file input
+      event.target.value = ''
     }
   }
 
@@ -279,13 +291,17 @@ export function Profile() {
         <img
           src={profileData.avatar_url}
           alt="Profile"
-          className="w-20 h-20 rounded-full object-cover"
+          className="w-20 h-20 rounded-full object-cover border-2 border-gray-600"
+          onError={() => {
+            console.log('Avatar failed to load, falling back to initials')
+            setProfileData({ ...profileData, avatar_url: '' })
+          }}
         />
       )
     }
     
     return (
-      <div className="w-20 h-20 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full flex items-center justify-center text-2xl text-white font-bold">
+      <div className="w-20 h-20 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full flex items-center justify-center text-2xl text-white font-bold border-2 border-gray-600">
         {profile?.username?.[0]?.toUpperCase() || 'U'}
       </div>
     )
