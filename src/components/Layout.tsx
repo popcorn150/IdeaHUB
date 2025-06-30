@@ -111,20 +111,6 @@ export function Layout({ children }: LayoutProps) {
                     </button>
                   )}
 
-                  {/* Bolt Badge */}
-                  <a 
-                    href="https://bolt.new" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="block transition-transform duration-300 hover:scale-105"
-                  >
-                    <img 
-                      src="/black_circle_360x360.png" 
-                      alt="Powered by Bolt" 
-                      className="w-10 h-10 drop-shadow-lg hover:drop-shadow-xl transition-all duration-300"
-                    />
-                  </a>
-
                   <span className="text-gray-300 hidden lg:block">
                     Hey, {profile?.username || 'User'}!
                   </span>
@@ -138,7 +124,7 @@ export function Layout({ children }: LayoutProps) {
                 </div>
               ) : (
                 <div className="flex items-center space-x-4">
-                  {/* Bolt Badge */}
+                  {/* Bolt Badge - Only show when not signed in (landing page) */}
                   <a 
                     href="https://bolt.new" 
                     target="_blank" 
@@ -148,7 +134,7 @@ export function Layout({ children }: LayoutProps) {
                     <img 
                       src="/black_circle_360x360.png" 
                       alt="Powered by Bolt" 
-                      className="w-10 h-10 drop-shadow-lg hover:drop-shadow-xl transition-all duration-300"
+                      className="w-12 h-12 drop-shadow-lg hover:drop-shadow-xl transition-all duration-300"
                     />
                   </a>
                 </div>
