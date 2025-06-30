@@ -89,27 +89,16 @@ Deno.serve(async (req) => {
         })
     }
 
-    // Ensure creator has a wallet
-    const { data: wallet, error: walletError } = await supabase
-      .from('creator_wallets')
-      .select('id')
-      .eq('user_id', idea.created_by)
-      .single()
+    // Ensure creator has a wallet using the new function
+    const { data: walletResult, error: walletError } = await supabase
+      .rpc('ensure_creator_wallet', { user_uuid: idea.created_by })
 
-    if (walletError || !wallet) {
-      // Create wallet for creator
-      const { data: newWallet, error: createWalletError } = await supabase
-        .from('creator_wallets')
-        .insert({
-          user_id: idea.created_by
-        })
-        .select('id')
-        .single()
-
-      if (createWalletError) {
-        throw new Error('Failed to create creator wallet')
-      }
+    if (walletError) {
+      console.error('Error ensuring creator wallet:', walletError)
+      throw new Error('Failed to ensure creator wallet exists')
     }
+
+    console.log('Creator wallet ensured:', walletResult)
 
     // Calculate platform fee (10%)
     const platformFee = Math.round(amount * 0.1)
