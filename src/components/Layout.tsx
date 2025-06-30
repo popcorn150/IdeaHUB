@@ -95,20 +95,24 @@ export function Layout({ children }: LayoutProps) {
             <div className="hidden md:flex items-center space-x-4">
               {user ? (
                 <div className="flex items-center space-x-4">
-                  {/* Premium Status / Upgrade Button */}
-                  {profile?.is_premium ? (
-                    <div className="flex items-center space-x-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 px-4 py-2 rounded-lg border border-purple-500/30 shadow-lg shadow-purple-400/25 animate-in slide-in-from-right duration-500">
-                      <Crown className="w-4 h-4" />
-                      <span className="text-sm font-medium">Pro Member</span>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setShowPricing(true)}
-                      className="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 py-2 rounded-lg hover:shadow-lg hover:shadow-purple-400/25 transition-all duration-300"
-                    >
-                      <Crown className="w-4 h-4" />
-                      <span className="hidden sm:block">Upgrade to Pro</span>
-                    </button>
+                  {/* Premium Status / Upgrade Button - Only for creators */}
+                  {profile?.role === 'creator' && (
+                    <>
+                      {profile?.is_premium ? (
+                        <div className="flex items-center space-x-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 px-4 py-2 rounded-lg border border-purple-500/30 shadow-lg shadow-purple-400/25 animate-in slide-in-from-right duration-500">
+                          <Crown className="w-4 h-4" />
+                          <span className="text-sm font-medium">Pro Member</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setShowPricing(true)}
+                          className="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 py-2 rounded-lg hover:shadow-lg hover:shadow-purple-400/25 transition-all duration-300"
+                        >
+                          <Crown className="w-4 h-4" />
+                          <span className="hidden sm:block">Upgrade to Pro</span>
+                        </button>
+                      )}
+                    </>
                   )}
 
                   <span className="text-gray-300 hidden lg:block">
@@ -178,22 +182,27 @@ export function Layout({ children }: LayoutProps) {
               })}
               
               <div className="border-t border-gray-700 pt-4 mt-4">
-                {profile?.is_premium ? (
-                  <div className="flex items-center space-x-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 px-3 py-2 rounded-lg border border-purple-500/30">
-                    <Crown className="w-4 h-4" />
-                    <span className="text-sm font-medium">Pro Member</span>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setShowPricing(true)
-                      setMobileMenuOpen(false)
-                    }}
-                    className="w-full flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white px-3 py-2 rounded-lg hover:shadow-lg hover:shadow-purple-400/25 transition-all duration-300"
-                  >
-                    <Crown className="w-4 h-4" />
-                    <span>Upgrade to Pro</span>
-                  </button>
+                {/* Premium Status / Upgrade Button - Only for creators */}
+                {profile?.role === 'creator' && (
+                  <>
+                    {profile?.is_premium ? (
+                      <div className="flex items-center space-x-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 px-3 py-2 rounded-lg border border-purple-500/30">
+                        <Crown className="w-4 h-4" />
+                        <span className="text-sm font-medium">Pro Member</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setShowPricing(true)
+                          setMobileMenuOpen(false)
+                        }}
+                        className="w-full flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white px-3 py-2 rounded-lg hover:shadow-lg hover:shadow-purple-400/25 transition-all duration-300"
+                      >
+                        <Crown className="w-4 h-4" />
+                        <span>Upgrade to Pro</span>
+                      </button>
+                    )}
+                  </>
                 )}
                 
                 <button
@@ -217,8 +226,8 @@ export function Layout({ children }: LayoutProps) {
         {children}
       </main>
 
-      {/* Pricing Modal */}
-      {showPricing && (
+      {/* Pricing Modal - Only for creators */}
+      {showPricing && profile?.role === 'creator' && (
         <PricingModal onClose={() => setShowPricing(false)} />
       )}
     </div>

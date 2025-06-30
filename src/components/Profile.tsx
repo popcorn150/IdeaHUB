@@ -11,6 +11,7 @@ import type { Idea, User } from '../lib/types'
 
 interface IdeaWithMintedUser extends Idea {
   minted_user?: User | null
+  author?: User | null
 }
 
 export function Profile() {
@@ -47,11 +48,16 @@ export function Profile() {
   }, [profile])
 
   useEffect(() => {
-    if (user) {
+    // Only fetch data when both user and profile are available
+    if (user && profile) {
+      console.log('Fetching data for user:', user.id, 'with role:', profile.role)
       fetchUserIdeas()
       fetchOwnedIdeas()
+    } else {
+      console.log('Waiting for user and profile to be available:', { user: !!user, profile: !!profile })
+      setLoading(false)
     }
-  }, [user])
+  }, [user, profile])
 
   // Enhanced payment success monitoring
   useEffect(() => {
@@ -143,8 +149,10 @@ export function Profile() {
       
       // Refresh ideas to show new ownership
       setTimeout(() => {
-        fetchUserIdeas()
-        fetchOwnedIdeas()
+        if (user && profile) {
+          fetchUserIdeas()
+          fetchOwnedIdeas()
+        }
       }, 2000)
       
       // Hide purchase success message after 10 seconds
@@ -158,9 +166,28 @@ export function Profile() {
     return <Navigate to="/auth" replace />
   }
 
+  // Show loading while waiting for profile
+  if (!profile) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-8 mb-8">
+          <div className="animate-pulse">
+            <div className="h-6 bg-gray-700 rounded w-1/3 mb-4"></div>
+            <div className="h-20 bg-gray-700 rounded mb-4"></div>
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-4 bg-gray-700 rounded"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   async function fetchUserIdeas() {
-    if (!user) {
-      console.error('User is null in fetchUserIdeas')
+    if (!user || !profile) {
+      console.error('User or profile is null in fetchUserIdeas', { user: !!user, profile: !!profile })
       return
     }
 
@@ -185,8 +212,8 @@ export function Profile() {
   }
 
   async function fetchOwnedIdeas() {
-    if (!user) {
-      console.error('User is null in fetchOwnedIdeas')
+    if (!user || !profile) {
+      console.error('User or profile is null in fetchOwnedIdeas', { user: !!user, profile: !!profile })
       return
     }
 
@@ -369,8 +396,8 @@ export function Profile() {
         </div>
       )}
 
-      {/* Pro Welcome Message */}
-      {showProWelcome && (
+      {/* Pro Welcome Message - Only for creators */}
+      {showProWelcome && profile.role === 'creator' && (
         <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg p-6 mb-6 animate-in slide-in-from-top duration-500">
           <div className="flex items-center space-x-3">
             <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-2 rounded-full animate-pulse">
@@ -386,8 +413,8 @@ export function Profile() {
         </div>
       )}
 
-      {/* Payment Success Message */}
-      {showSuccessMessage && (
+      {/* Payment Success Message - Only for creators */}
+      {showSuccessMessage && profile.role === 'creator' && (
         <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 mb-6">
           <div className="flex items-center space-x-2">
             <CheckCircle className="w-5 h-5 text-green-400" />
@@ -429,7 +456,7 @@ export function Profile() {
           <div className="flex items-center space-x-6">
             <div className="relative">
               {getAvatarDisplay()}
-              {profile?.is_premium && (
+              {profile?.is_premium && profile.role === 'creator' && (
                 <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full p-1 animate-pulse">
                   <Crown className="w-4 h-4 text-white" />
                 </div>
@@ -499,7 +526,7 @@ export function Profile() {
                     <h1 className="text-2xl font-bold text-white">
                       {profile?.username || 'Anonymous User'}
                     </h1>
-                    {profile?.is_premium && (
+                    {profile?.is_premium && profile.role === 'creator' && (
                       <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30 shadow-lg shadow-purple-400/25 animate-in slide-in-from-right duration-500">
                         <Crown className="w-4 h-4 mr-1" />
                         Pro Member
@@ -547,7 +574,9 @@ export function Profile() {
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-green-400">{ownedIdeas.length}</div>
-            <div className="text-sm text-gray-400">Owned Ideas</div>
+            <div className="text-sm text-gray-400">
+              {profile?.role === 'creator' ? 'Ideas Sold' : 'Ideas Purchased'}
+            </div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-purple-400">{nftIdeas.length}</div>
@@ -564,12 +593,12 @@ export function Profile() {
         </div>
       </div>
 
-      {/* Owned Ideas Section */}
-      {ownedIdeas.length > 0 && (
+      {/* Purchased Ideas Section - For Investors */}
+      {profile.role === 'investor' && ownedIdeas.length > 0 && (
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-white mb-6 flex items-center space-x-2">
             <ShoppingCart className="w-6 h-6 text-green-400" />
-            <span>Owned Ideas</span>
+            <span>Ideas Purchased</span>
             <span className="text-sm text-gray-400 font-normal">({ownedIdeas.length})</span>
           </h2>
           
@@ -798,7 +827,7 @@ export function Profile() {
       )}
 
       {/* Investor-specific section */}
-      {profile?.role === 'investor' && ideas.length === 0 && (
+      {profile?.role === 'investor' && ownedIdeas.length === 0 && (
         <div>
           <h2 className="text-2xl font-bold text-white mb-6">Discover Ideas</h2>
           <div className="text-center py-12">

@@ -49,7 +49,8 @@ export function IdeaFeed() {
 
   async function fetchIdeas() {
     try {
-      const { data: ideasData, error: ideasError } = await supabase
+      // Filter out ideas that are already purchased by the current user
+      let query = supabase
         .from('ideas')
         .select(`
           *,
@@ -57,6 +58,13 @@ export function IdeaFeed() {
           minted_user:users!ideas_minted_by_fkey(*)
         `)
         .order('created_at', { ascending: false })
+
+      // For investors, exclude ideas they've already purchased
+      if (user && profile?.role === 'investor') {
+        query = query.or(`minted_by.is.null,minted_by.neq.${user.id}`)
+      }
+
+      const { data: ideasData, error: ideasError } = await query
 
       if (ideasError) throw ideasError
 
