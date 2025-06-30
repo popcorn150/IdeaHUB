@@ -159,6 +159,11 @@ export function Profile() {
   }
 
   async function fetchUserIdeas() {
+    if (!user) {
+      console.error('User is null in fetchUserIdeas')
+      return
+    }
+
     try {
       const { data, error } = await supabase
         .from('ideas')
@@ -180,6 +185,11 @@ export function Profile() {
   }
 
   async function fetchOwnedIdeas() {
+    if (!user) {
+      console.error('User is null in fetchOwnedIdeas')
+      return
+    }
+
     try {
       const { data, error } = await supabase
         .from('ideas')
