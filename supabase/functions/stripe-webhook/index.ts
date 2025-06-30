@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
         const ideaId = session.metadata?.idea_id
         const creatorId = session.metadata?.creator_id
         const investorId = session.metadata?.investor_id
+        const creatorAmount = session.metadata?.creator_amount
 
         console.log('Processing checkout.session.completed:', {
           sessionId: session.id,
@@ -82,12 +83,13 @@ Deno.serve(async (req) => {
           type: session.metadata?.type
         })
 
-        // Handle idea purchase
-        if (session.metadata?.type === 'idea_purchase' && ideaId && creatorId && investorId) {
-          console.log('Processing idea purchase:', {
+        // Handle wallet-based idea purchase
+        if (session.metadata?.type === 'wallet_purchase' && ideaId && creatorId && investorId && creatorAmount) {
+          console.log('Processing wallet purchase:', {
             ideaId,
             creatorId,
             investorId,
+            creatorAmount,
             paymentStatus: session.payment_status
           })
 
@@ -107,7 +109,64 @@ Deno.serve(async (req) => {
               console.log('✅ Idea ownership transferred successfully')
             }
 
-            // Record the purchase transaction
+            // Get or create creator wallet
+            let { data: wallet, error: walletError } = await supabase
+              .from('creator_wallets')
+              .select('id')
+              .eq('user_id', creatorId)
+              .single()
+
+            if (walletError || !wallet) {
+              // Create wallet
+              const { data: newWallet, error: createError } = await supabase
+                .from('creator_wallets')
+                .insert({ user_id: creatorId })
+                .select('id')
+                .single()
+
+              if (createError) {
+                console.error('Error creating wallet:', createError)
+                break
+              }
+              wallet = newWallet
+            }
+
+            // Add money to creator's wallet
+            const creatorAmountCents = parseInt(creatorAmount)
+            const { error: updateError } = await supabase
+              .from('creator_wallets')
+              .update({
+                balance_cents: supabase.raw(`balance_cents + ${creatorAmountCents}`),
+                total_earned_cents: supabase.raw(`total_earned_cents + ${creatorAmountCents}`),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', wallet.id)
+
+            if (updateError) {
+              console.error('Error updating wallet balance:', updateError)
+            } else {
+              console.log('✅ Creator wallet updated successfully')
+            }
+
+            // Record transaction
+            const { error: transactionError } = await supabase
+              .from('wallet_transactions')
+              .insert({
+                wallet_id: wallet.id,
+                type: 'purchase',
+                amount_cents: creatorAmountCents,
+                description: `Sale of idea: ${ideaId}`,
+                idea_id: ideaId,
+                stripe_payment_intent_id: session.payment_intent as string
+              })
+
+            if (transactionError) {
+              console.error('Error recording transaction:', transactionError)
+            } else {
+              console.log('✅ Transaction recorded successfully')
+            }
+
+            // Record the purchase order
             const { error: orderError } = await supabase
               .from('stripe_orders')
               .insert({
@@ -211,38 +270,6 @@ Deno.serve(async (req) => {
         break
       }
 
-      case 'account.updated': {
-        const account = event.data.object as Stripe.Account
-        const userId = account.metadata?.supabase_user_id
-
-        console.log('Processing account.updated:', {
-          accountId: account.id,
-          userId,
-          chargesEnabled: account.charges_enabled,
-          payoutsEnabled: account.payouts_enabled
-        })
-
-        if (userId) {
-          // Update payout account status
-          const accountEnabled = account.charges_enabled && account.payouts_enabled
-          
-          const { error } = await supabase
-            .from('stripe_payout_accounts')
-            .update({
-              account_enabled: accountEnabled,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('user_id', userId)
-
-          if (error) {
-            console.error('Error updating payout account status:', error)
-          } else {
-            console.log('✅ Payout account status updated:', accountEnabled)
-          }
-        }
-        break
-      }
-
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent
         const ideaId = paymentIntent.metadata?.idea_id
@@ -254,19 +281,16 @@ Deno.serve(async (req) => {
           ideaId,
           creatorId,
           investorId,
-          amount: paymentIntent.amount,
-          applicationFeeAmount: paymentIntent.application_fee_amount
+          amount: paymentIntent.amount
         })
 
         if (ideaId && creatorId && investorId) {
-          console.log('✅ Idea purchase payment completed successfully')
-          
-          // The ownership transfer is already handled in checkout.session.completed
-          // This is just for logging/confirmation
+          console.log('✅ Wallet purchase payment completed successfully')
         }
         break
       }
 
+      // ... (keep all other existing webhook handlers for subscriptions, etc.)
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription
