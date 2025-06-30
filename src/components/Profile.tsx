@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { supabase } from '../lib/supabase'
 import { Navigate, useSearchParams } from 'react-router-dom'
-import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw, AlertCircle, Camera, Upload, Search, Trash2 } from 'lucide-react'
+import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw, AlertCircle, Camera, Upload, Search, Trash2, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { EditIdeaModal } from './EditIdeaModal'
 import { DeleteConfirmModal } from './DeleteConfirmModal'
@@ -22,6 +22,7 @@ export function Profile() {
   const [loading, setLoading] = useState(true)
   const [editingProfile, setEditingProfile] = useState(false)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  const [showProWelcome, setShowProWelcome] = useState(false)
   const [webhookStatus, setWebhookStatus] = useState<'checking' | 'working' | 'failed' | null>(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [editModal, setEditModal] = useState<IdeaWithMintedUser | null>(null)
@@ -63,6 +64,7 @@ export function Profile() {
       // Start monitoring for premium status update
       let attempts = 0
       const maxAttempts = 15 // 30 seconds total
+      let wasAlreadyPremium = profile?.is_premium
       
       const checkPremiumStatus = async () => {
         // Add null check for user
@@ -88,9 +90,16 @@ export function Profile() {
         } else {
           console.log('Current premium status:', userData.is_premium)
           
-          if (userData.is_premium) {
+          if (userData.is_premium && !wasAlreadyPremium) {
             setWebhookStatus('working')
+            setShowProWelcome(true)
             console.log('✅ Webhook successfully updated premium status!')
+            
+            // Show welcome message for 5 seconds
+            setTimeout(() => {
+              setShowProWelcome(false)
+            }, 5000)
+            
             return true // Stop checking
           }
         }
@@ -123,7 +132,7 @@ export function Profile() {
       // Cleanup interval on unmount
       return () => clearInterval(intervalId)
     }
-  }, [searchParams, refreshProfile, user])
+  }, [searchParams, refreshProfile, user, profile?.is_premium])
 
   if (!user) {
     return <Navigate to="/auth" replace />
@@ -313,6 +322,23 @@ export function Profile() {
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Pro Welcome Message */}
+      {showProWelcome && (
+        <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg p-6 mb-6 animate-in slide-in-from-top duration-500">
+          <div className="flex items-center space-x-3">
+            <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-2 rounded-full">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-white mb-1">Welcome to Idea-HUB Pro! 🎉</h3>
+              <p className="text-purple-300/80">
+                You now have access to partnership mode, NDA protection, and all premium features!
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Payment Success Message */}
       {showSuccessMessage && (
         <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 mb-6">
@@ -427,7 +453,7 @@ export function Profile() {
                       {profile?.username || 'Anonymous User'}
                     </h1>
                     {profile?.is_premium && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30">
+                      <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30 shadow-lg shadow-purple-400/25">
                         <Crown className="w-4 h-4 mr-1" />
                         Pro Member
                       </span>

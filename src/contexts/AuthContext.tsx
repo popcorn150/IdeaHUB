@@ -48,14 +48,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Check for success parameter in URL and refresh profile
+  // Check for success parameter in URL and refresh profile more aggressively
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     if (urlParams.get('success') === 'true' && user) {
-      // Payment was successful, refresh profile after a short delay
-      setTimeout(() => {
-        fetchProfile(user.id)
+      // Payment was successful, refresh profile immediately and then periodically
+      const refreshImmediately = async () => {
+        await fetchProfile(user.id)
+      }
+      
+      refreshImmediately()
+      
+      // Set up periodic refresh for the first 30 seconds
+      let attempts = 0
+      const maxAttempts = 15
+      
+      const intervalId = setInterval(async () => {
+        attempts++
+        await fetchProfile(user.id)
+        
+        if (attempts >= maxAttempts) {
+          clearInterval(intervalId)
+        }
       }, 2000)
+      
+      return () => clearInterval(intervalId)
     }
   }, [user])
 

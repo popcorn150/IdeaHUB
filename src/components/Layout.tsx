@@ -83,9 +83,9 @@ export function Layout({ children }: LayoutProps) {
                 <div className="flex items-center space-x-4">
                   {/* Premium Status / Upgrade Button */}
                   {profile?.is_premium ? (
-                    <div className="flex items-center space-x-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 px-3 py-1 rounded-lg border border-purple-500/30">
+                    <div className="flex items-center space-x-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 px-4 py-2 rounded-lg border border-purple-500/30 shadow-lg shadow-purple-400/25">
                       <Crown className="w-4 h-4" />
-                      <span className="text-sm font-medium">Pro</span>
+                      <span className="text-sm font-medium">Pro Member</span>
                     </div>
                   ) : (
                     <button
@@ -93,7 +93,7 @@ export function Layout({ children }: LayoutProps) {
                       className="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 py-2 rounded-lg hover:shadow-lg hover:shadow-purple-400/25 transition-all duration-300"
                     >
                       <Crown className="w-4 h-4" />
-                      <span className="hidden sm:block">Upgrade</span>
+                      <span className="hidden sm:block">Upgrade to Pro</span>
                     </button>
                   )}
 
