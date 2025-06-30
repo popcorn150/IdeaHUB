@@ -70,6 +70,9 @@ Deno.serve(async (req) => {
         const creatorId = session.metadata?.creator_id
         const investorId = session.metadata?.investor_id
         const creatorAmount = session.metadata?.creator_amount
+        const ndaSignature = session.metadata?.nda_signature
+        const investorName = session.metadata?.investor_name
+        const investorEmail = session.metadata?.investor_email
 
         console.log('Processing checkout.session.completed:', {
           sessionId: session.id,
@@ -82,6 +85,104 @@ Deno.serve(async (req) => {
           paymentStatus: session.payment_status,
           type: session.metadata?.type
         })
+
+        // Handle partnership payment
+        if (session.metadata?.type === 'partnership_payment' && ideaId && creatorId && investorId && creatorAmount) {
+          console.log('Processing partnership payment:', {
+            ideaId,
+            creatorId,
+            investorId,
+            creatorAmount,
+            paymentStatus: session.payment_status
+          })
+
+          if (session.payment_status === 'paid') {
+            // Get or create creator wallet
+            let { data: wallet, error: walletError } = await supabase
+              .from('creator_wallets')
+              .select('id')
+              .eq('user_id', creatorId)
+              .single()
+
+            if (walletError || !wallet) {
+              // Create wallet
+              const { data: newWallet, error: createError } = await supabase
+                .from('creator_wallets')
+                .insert({ user_id: creatorId })
+                .select('id')
+                .single()
+
+              if (createError) {
+                console.error('Error creating wallet:', createError)
+                break
+              }
+              wallet = newWallet
+            }
+
+            // Add money to creator's wallet
+            const creatorAmountCents = parseInt(creatorAmount)
+            const { error: updateError } = await supabase
+              .from('creator_wallets')
+              .update({
+                balance_cents: supabase.raw(`balance_cents + ${creatorAmountCents}`),
+                total_earned_cents: supabase.raw(`total_earned_cents + ${creatorAmountCents}`),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', wallet.id)
+
+            if (updateError) {
+              console.error('Error updating wallet balance:', updateError)
+            } else {
+              console.log('✅ Creator wallet updated successfully')
+            }
+
+            // Record transaction
+            const { error: transactionError } = await supabase
+              .from('wallet_transactions')
+              .insert({
+                wallet_id: wallet.id,
+                type: 'purchase',
+                amount_cents: creatorAmountCents,
+                description: `Partnership fee for idea: ${ideaId}`,
+                idea_id: ideaId,
+                stripe_payment_intent_id: session.payment_intent as string
+              })
+
+            if (transactionError) {
+              console.error('Error recording transaction:', transactionError)
+            } else {
+              console.log('✅ Transaction recorded successfully')
+            }
+
+            // Create partnership request record
+            const { error: partnershipError } = await supabase
+              .from('partnership_requests')
+              .insert({
+                idea_id: ideaId,
+                creator_id: creatorId,
+                investor_id: investorId,
+                investor_name: investorName,
+                investor_email: investorEmail,
+                message: 'Partnership request submitted via payment flow',
+                agreed_nda: true,
+                nda_signature: ndaSignature,
+                payment_amount_cents: parseInt(creatorAmount) + Math.round(parseInt(creatorAmount) * 0.1 / 0.9), // Add back platform fee
+                payment_completed: true,
+                stripe_payment_intent_id: session.payment_intent as string,
+                status: 'pending'
+              })
+
+            if (partnershipError) {
+              console.error('Error creating partnership request:', partnershipError)
+            } else {
+              console.log('✅ Partnership request created successfully')
+            }
+
+            // TODO: Send email notification to creator
+            // This would be handled by another edge function
+          }
+          break
+        }
 
         // Handle wallet-based idea purchase
         if (session.metadata?.type === 'wallet_purchase' && ideaId && creatorId && investorId && creatorAmount) {
@@ -285,7 +386,7 @@ Deno.serve(async (req) => {
         })
 
         if (ideaId && creatorId && investorId) {
-          console.log('✅ Wallet purchase payment completed successfully')
+          console.log('✅ Payment completed successfully')
         }
         break
       }

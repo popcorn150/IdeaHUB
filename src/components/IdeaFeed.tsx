@@ -5,7 +5,7 @@ import { useToast } from '../contexts/ToastContext'
 import { Eye, EyeOff, Star, Tag, Calendar, Shield, ShoppingCart, Check, X, Heart, MessageCircle, GitBranch, DollarSign, Handshake, Users, AlertTriangle } from 'lucide-react'
 import { IdeaDetail } from './IdeaDetail'
 import { RemixModal } from './RemixModal'
-import { PartnershipModal } from './PartnershipModal'
+import { PartnershipRequestFlow } from './PartnershipRequestFlow'
 import { FeedFilters } from './FeedFilters'
 import { LandingCarousel } from './LandingCarousel'
 import type { Idea, User, OwnershipMode } from '../lib/types'
@@ -377,6 +377,9 @@ export function IdeaFeed() {
                       {idea.ownership_mode === 'forsale' && (
                         <span className="ml-1 text-xs">$50</span>
                       )}
+                      {idea.ownership_mode === 'partnership' && (
+                        <span className="ml-1 text-xs">$5 fee</span>
+                      )}
                     </span>
                   </div>
 
@@ -614,10 +617,6 @@ export function IdeaFeed() {
             setSelectedIdea(null)
             setPurchaseModal(idea)
           }}
-          onPartnership={(idea) => {
-            setSelectedIdea(null)
-            setPartnershipModal(idea)
-          }}
           onRemix={(idea) => {
             setSelectedIdea(null)
             setRemixModal(idea)
@@ -626,9 +625,13 @@ export function IdeaFeed() {
       )}
 
       {partnershipModal && (
-        <PartnershipModal
+        <PartnershipRequestFlow
           idea={partnershipModal}
           onClose={() => setPartnershipModal(null)}
+          onSuccess={() => {
+            setPartnershipModal(null)
+            fetchIdeas()
+          }}
         />
       )}
 
