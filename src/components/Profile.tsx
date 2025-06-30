@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { supabase } from '../lib/supabase'
 import { Navigate, useSearchParams } from 'react-router-dom'
-import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw, AlertCircle, Camera, Upload } from 'lucide-react'
+import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw, AlertCircle, Camera, Upload, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Idea, User } from '../lib/types'
 
@@ -464,7 +464,9 @@ export function Profile() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-700">
           <div className="text-center">
             <div className="text-2xl font-bold text-cyan-400">{ideas.length}</div>
-            <div className="text-sm text-gray-400">Created Ideas</div>
+            <div className="text-sm text-gray-400">
+              {profile?.role === 'creator' ? 'Created Ideas' : 'Ideas Discovered'}
+            </div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-green-400">{ownedIdeas.length}</div>
@@ -472,11 +474,15 @@ export function Profile() {
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-purple-400">{nftIdeas.length}</div>
-            <div className="text-sm text-gray-400">NFTs Minted</div>
+            <div className="text-sm text-gray-400">
+              {profile?.role === 'creator' ? 'NFTs Minted' : 'NFTs Owned'}
+            </div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-orange-400">{protectedIdeas.length}</div>
-            <div className="text-sm text-gray-400">Protected Ideas</div>
+            <div className="text-sm text-gray-400">
+              {profile?.role === 'creator' ? 'Protected Ideas' : 'Premium Access'}
+            </div>
           </div>
         </div>
       </div>
@@ -557,125 +563,147 @@ export function Profile() {
         </div>
       )}
 
-      {/* Created Ideas Grid */}
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-6">My Created Ideas</h2>
-        
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-gray-800/50 rounded-xl p-6 animate-pulse">
-                <div className="h-4 bg-gray-700 rounded w-3/4 mb-4"></div>
-                <div className="space-y-2">
-                  <div className="h-3 bg-gray-700 rounded"></div>
-                  <div className="h-3 bg-gray-700 rounded w-5/6"></div>
+      {/* Created Ideas Grid - Only show for creators */}
+      {profile?.role === 'creator' && (
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-6">My Created Ideas</h2>
+          
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-gray-800/50 rounded-xl p-6 animate-pulse">
+                  <div className="h-4 bg-gray-700 rounded w-3/4 mb-4"></div>
+                  <div className="space-y-2">
+                    <div className="h-3 bg-gray-700 rounded"></div>
+                    <div className="h-3 bg-gray-700 rounded w-5/6"></div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : ideas.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {ideas.map((idea) => (
-              <div
-                key={idea.id}
-                className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 hover:border-cyan-500/30 transition-all duration-300 overflow-hidden group"
-              >
-                {idea.image && (
-                  <div className="aspect-video overflow-hidden">
-                    <img
-                      src={idea.image}
-                      alt={idea.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                )}
-                
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-xl font-semibold text-white group-hover:text-cyan-400 transition-colors duration-300">
-                      {idea.title}
-                    </h3>
-                    <div className="flex items-center space-x-2">
-                      {idea.is_nft && (
-                        <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-1 rounded-md">
-                          <Star className="w-4 h-4 text-white" />
-                        </div>
-                      )}
-                      {idea.is_blurred && (
-                        <div className="bg-orange-500/20 p-1 rounded-md">
-                          <Shield className="w-4 h-4 text-orange-400" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {idea.minted_by && idea.minted_by !== user.id && (
-                    <div className="mb-3">
-                      <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30">
-                        <Star className="w-3 h-3 mr-1" />
-                        Minted by {getMintedByDisplay(idea)}
-                      </span>
+              ))}
+            </div>
+          ) : ideas.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {ideas.map((idea) => (
+                <div
+                  key={idea.id}
+                  className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 hover:border-cyan-500/30 transition-all duration-300 overflow-hidden group"
+                >
+                  {idea.image && (
+                    <div className="aspect-video overflow-hidden">
+                      <img
+                        src={idea.image}
+                        alt={idea.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
                     </div>
                   )}
-
-                  <p className="text-gray-300 mb-4 line-clamp-3">
-                    {idea.description}
-                  </p>
-
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {idea.tags?.slice(0, 3).map((tag, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                      >
-                        <Tag className="w-3 h-3 mr-1" />
-                        {tag}
-                      </span>
-                    ))}
-                    {idea.tags && idea.tags.length > 3 && (
-                      <span className="text-xs text-gray-400">
-                        +{idea.tags.length - 3} more
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm text-gray-400">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>{formatDate(idea.created_at)}</span>
+                  
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="text-xl font-semibold text-white group-hover:text-cyan-400 transition-colors duration-300">
+                        {idea.title}
+                      </h3>
+                      <div className="flex items-center space-x-2">
+                        {idea.is_nft && (
+                          <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-1 rounded-md">
+                            <Star className="w-4 h-4 text-white" />
+                          </div>
+                        )}
+                        {idea.is_blurred && (
+                          <div className="bg-orange-500/20 p-1 rounded-md">
+                            <Shield className="w-4 h-4 text-orange-400" />
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      {idea.is_nft && (
-                        <span className="text-purple-400 text-xs">NFT</span>
+
+                    {idea.minted_by && idea.minted_by !== user.id && (
+                      <div className="mb-3">
+                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30">
+                          <Star className="w-3 h-3 mr-1" />
+                          Minted by {getMintedByDisplay(idea)}
+                        </span>
+                      </div>
+                    )}
+
+                    <p className="text-gray-300 mb-4 line-clamp-3">
+                      {idea.description}
+                    </p>
+
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {idea.tags?.slice(0, 3).map((tag, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                        >
+                          <Tag className="w-3 h-3 mr-1" />
+                          {tag}
+                        </span>
+                      ))}
+                      {idea.tags && idea.tags.length > 3 && (
+                        <span className="text-xs text-gray-400">
+                          +{idea.tags.length - 3} more
+                        </span>
                       )}
-                      {idea.is_blurred && (
-                        <span className="text-orange-400 text-xs">Protected</span>
-                      )}
-                      {idea.minted_by && idea.minted_by !== user.id && (
-                        <span className="text-purple-400 text-xs">SOLD</span>
-                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm text-gray-400">
+                      <div className="flex items-center space-x-1">
+                        <Calendar className="w-4 h-4" />
+                        <span>{formatDate(idea.created_at)}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {idea.is_nft && (
+                          <span className="text-purple-400 text-xs">NFT</span>
+                        )}
+                        {idea.is_blurred && (
+                          <span className="text-orange-400 text-xs">Protected</span>
+                        )}
+                        {idea.minted_by && idea.minted_by !== user.id && (
+                          <span className="text-purple-400 text-xs">SOLD</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="bg-gray-800/50 rounded-xl p-8">
+                <h3 className="text-xl font-semibold text-gray-300 mb-2">No ideas yet</h3>
+                <p className="text-gray-400 mb-4">Start sharing your innovative ideas with the world!</p>
+                <Link
+                  to="/upload"
+                  className="inline-flex items-center space-x-2 bg-gradient-to-r from-cyan-500 to-purple-600 text-white px-6 py-3 rounded-lg hover:shadow-lg hover:shadow-cyan-400/25 transition-all duration-300"
+                >
+                  <Star className="w-4 h-4" />
+                  <span>Upload Your First Idea</span>
+                </Link>
               </div>
-            ))}
-          </div>
-        ) : (
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Investor-specific section */}
+      {profile?.role === 'investor' && ideas.length === 0 && (
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-6">Discover Ideas</h2>
           <div className="text-center py-12">
             <div className="bg-gray-800/50 rounded-xl p-8">
-              <h3 className="text-xl font-semibold text-gray-300 mb-2">No ideas yet</h3>
-              <p className="text-gray-400 mb-4">Start sharing your innovative ideas with the world!</p>
+              <h3 className="text-xl font-semibold text-gray-300 mb-2">Ready to discover amazing ideas?</h3>
+              <p className="text-gray-400 mb-4">Explore innovative concepts from talented creators and find your next investment opportunity!</p>
               <Link
-                to="/upload"
-                className="inline-flex items-center space-x-2 bg-gradient-to-r from-cyan-500 to-purple-600 text-white px-6 py-3 rounded-lg hover:shadow-lg hover:shadow-cyan-400/25 transition-all duration-300"
+                to="/"
+                className="inline-flex items-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg hover:shadow-lg hover:shadow-green-400/25 transition-all duration-300"
               >
-                <Star className="w-4 h-4" />
-                <span>Upload Your First Idea</span>
+                <Search className="w-4 h-4" />
+                <span>Explore Ideas</span>
               </Link>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
