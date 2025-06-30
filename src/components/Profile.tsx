@@ -185,24 +185,11 @@ export function Profile() {
 
     setUploadingAvatar(true)
     try {
-      // First, check if the avatars bucket exists
-      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets()
-      
-      if (bucketsError) {
-        throw new Error('Failed to check storage buckets')
-      }
-
-      const avatarsBucket = buckets?.find(bucket => bucket.name === 'avatars')
-      
-      if (!avatarsBucket) {
-        throw new Error('Avatar storage is not configured. Please contact support to enable avatar uploads.')
-      }
-
       // Create a unique filename
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}-${Date.now()}.${fileExt}`
       
-      // Upload to Supabase Storage
+      // Try to upload directly to the avatars bucket
       const { data, error } = await supabase.storage
         .from('avatars')
         .upload(fileName, file, {
@@ -211,10 +198,18 @@ export function Profile() {
         })
 
       if (error) {
+        console.error('Upload error:', error)
+        
+        // Handle specific error cases
         if (error.message.includes('Bucket not found')) {
-          throw new Error('Avatar storage is not configured. Please contact support to enable avatar uploads.')
+          throw new Error('Avatar storage bucket not found. Please ensure the "avatars" bucket exists in your Supabase project.')
+        } else if (error.message.includes('not allowed')) {
+          throw new Error('Upload not allowed. Please check your storage policies.')
+        } else if (error.message.includes('size')) {
+          throw new Error('File too large. Please choose a smaller image.')
+        } else {
+          throw new Error(`Upload failed: ${error.message}`)
         }
-        throw error
       }
 
       // Get public URL
@@ -226,15 +221,7 @@ export function Profile() {
       showToast('Avatar uploaded successfully!', 'success')
     } catch (error: any) {
       console.error('Error uploading avatar:', error)
-      
-      // Provide specific error messages based on the error type
-      if (error.message.includes('Avatar storage is not configured')) {
-        showToast(error.message, 'error')
-      } else if (error.message.includes('Bucket not found')) {
-        showToast('Avatar storage is not configured. Please contact support to enable avatar uploads.', 'error')
-      } else {
-        showToast('Failed to upload avatar. Please try again later.', 'error')
-      }
+      showToast(error.message || 'Failed to upload avatar. Please try again.', 'error')
     } finally {
       setUploadingAvatar(false)
     }
