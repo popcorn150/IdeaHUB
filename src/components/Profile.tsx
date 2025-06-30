@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { supabase } from '../lib/supabase'
 import { Navigate, useSearchParams } from 'react-router-dom'
-import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw, AlertCircle, Camera, Upload, Search, Trash2, Sparkles } from 'lucide-react'
+import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw, AlertCircle, Camera, Upload, Search, Trash2, Sparkles, DollarSign } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { EditIdeaModal } from './EditIdeaModal'
 import { DeleteConfirmModal } from './DeleteConfirmModal'
@@ -23,6 +23,7 @@ export function Profile() {
   const [editingProfile, setEditingProfile] = useState(false)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [showProWelcome, setShowProWelcome] = useState(false)
+  const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false)
   const [webhookStatus, setWebhookStatus] = useState<'checking' | 'working' | 'failed' | null>(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [editModal, setEditModal] = useState<IdeaWithMintedUser | null>(null)
@@ -56,6 +57,8 @@ export function Profile() {
   useEffect(() => {
     const success = searchParams.get('success')
     const canceled = searchParams.get('canceled')
+    const purchase = searchParams.get('purchase')
+    const ideaId = searchParams.get('idea')
     
     if (success === 'true' && user) {
       console.log('Payment success detected in Profile component')
@@ -131,6 +134,23 @@ export function Profile() {
       
       // Cleanup interval on unmount
       return () => clearInterval(intervalId)
+    }
+
+    // Handle idea purchase success
+    if (purchase === 'success' && ideaId) {
+      setShowPurchaseSuccess(true)
+      showToast('Idea purchased successfully! You now own the full rights.', 'success')
+      
+      // Refresh ideas to show new ownership
+      setTimeout(() => {
+        fetchUserIdeas()
+        fetchOwnedIdeas()
+      }, 2000)
+      
+      // Hide purchase success message after 10 seconds
+      setTimeout(() => {
+        setShowPurchaseSuccess(false)
+      }, 10000)
     }
   }, [searchParams, refreshProfile, user, profile?.is_premium])
 
@@ -322,6 +342,23 @@ export function Profile() {
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Purchase Success Message */}
+      {showPurchaseSuccess && (
+        <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-lg p-6 mb-6 animate-in slide-in-from-top duration-500">
+          <div className="flex items-center space-x-3">
+            <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-2 rounded-full animate-pulse">
+              <ShoppingCart className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-white mb-1">🎉 Purchase Successful!</h3>
+              <p className="text-green-300/80">
+                You now own the full rights to this idea. The creator has received their payout automatically.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Pro Welcome Message */}
       {showProWelcome && (
         <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg p-6 mb-6 animate-in slide-in-from-top duration-500">
@@ -523,6 +560,7 @@ export function Profile() {
           <h2 className="text-2xl font-bold text-white mb-6 flex items-center space-x-2">
             <ShoppingCart className="w-6 h-6 text-green-400" />
             <span>Owned Ideas</span>
+            <span className="text-sm text-gray-400 font-normal">({ownedIdeas.length})</span>
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -546,15 +584,20 @@ export function Profile() {
                     <h3 className="text-xl font-semibold text-white group-hover:text-green-400 transition-colors duration-300">
                       {idea.title}
                     </h3>
-                    <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-1 rounded-md">
-                      <Star className="w-4 h-4 text-white" />
+                    <div className="flex items-center space-x-2">
+                      <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-1 rounded-md">
+                        <Star className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="bg-green-500/20 p-1 rounded-md">
+                        <DollarSign className="w-4 h-4 text-green-400" />
+                      </div>
                     </div>
                   </div>
 
                   <div className="mb-3">
                     <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-500/20 text-green-300 border border-green-500/30">
                       <ShoppingCart className="w-3 h-3 mr-1" />
-                      Owned by you
+                      Purchased for $50
                     </span>
                   </div>
 
@@ -643,14 +686,19 @@ export function Profile() {
                             <Shield className="w-4 h-4 text-orange-400" />
                           </div>
                         )}
+                        {idea.minted_by && idea.minted_by !== user.id && (
+                          <div className="bg-green-500/20 p-1 rounded-md">
+                            <DollarSign className="w-4 h-4 text-green-400" />
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     {idea.minted_by && idea.minted_by !== user.id && (
                       <div className="mb-3">
-                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30">
-                          <Star className="w-3 h-3 mr-1" />
-                          Minted by {getMintedByDisplay(idea)}
+                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 border border-green-500/30">
+                          <DollarSign className="w-3 h-3 mr-1" />
+                          Sold for $50 (You earned $45)
                         </span>
                       </div>
                     )}
@@ -677,22 +725,28 @@ export function Profile() {
                     </div>
 
                     {/* Edit and Delete buttons for own ideas */}
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                      <button
-                        onClick={() => setEditModal(idea)}
-                        className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
-                      >
-                        <Edit className="w-4 h-4" />
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        onClick={() => setDeleteModal(idea)}
-                        className="bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-3 rounded-lg transition-all duration-300 border border-red-500/30 hover:border-red-400/50 flex items-center justify-center space-x-2 text-sm"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span>Delete</span>
-                      </button>
-                    </div>
+                    {!idea.minted_by || idea.minted_by === user.id ? (
+                      <div className="grid grid-cols-2 gap-2 mb-4">
+                        <button
+                          onClick={() => setEditModal(idea)}
+                          className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
+                        >
+                          <Edit className="w-4 h-4" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => setDeleteModal(idea)}
+                          className="bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-3 rounded-lg transition-all duration-300 border border-red-500/30 hover:border-red-400/50 flex items-center justify-center space-x-2 text-sm"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mb-4 p-2 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
+                        <span className="text-green-400 text-sm font-medium">✅ Sold - Cannot Edit</span>
+                      </div>
+                    )}
 
                     <div className="flex items-center justify-between text-sm text-gray-400">
                       <div className="flex items-center space-x-1">
@@ -707,7 +761,7 @@ export function Profile() {
                           <span className="text-orange-400 text-xs">Protected</span>
                         )}
                         {idea.minted_by && idea.minted_by !== user.id && (
-                          <span className="text-purple-400 text-xs">SOLD</span>
+                          <span className="text-green-400 text-xs">SOLD</span>
                         )}
                       </div>
                     </div>

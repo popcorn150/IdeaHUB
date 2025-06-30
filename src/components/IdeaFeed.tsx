@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
-import { Eye, EyeOff, Star, Tag, Calendar, Shield, ShoppingCart, Check, X, Heart, MessageCircle, GitBranch, DollarSign, Handshake, Users } from 'lucide-react'
+import { Eye, EyeOff, Star, Tag, Calendar, Shield, ShoppingCart, Check, X, Heart, MessageCircle, GitBranch, DollarSign, Handshake, Users, AlertTriangle } from 'lucide-react'
 import { IdeaDetail } from './IdeaDetail'
 import { RemixModal } from './RemixModal'
 import { PartnershipModal } from './PartnershipModal'
@@ -161,22 +161,39 @@ export function IdeaFeed() {
     
     setPurchasing(true)
     try {
-      const { error } = await supabase
-        .from('ideas')
-        .update({
-          is_nft: true,
-          minted_by: user.id
+      // Create Stripe checkout session with payout to creator
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payout-session`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ideaId: idea.id,
+          investorId: user.id,
+          amount: 5000 // $50.00 in cents
         })
-        .eq('id', idea.id)
+      })
 
-      if (error) throw error
-
-      showToast('Idea purchased successfully!', 'success')
-      await fetchIdeas()
-      setPurchaseModal(null)
+      const data = await response.json()
+      
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Failed to create purchase session')
+      }
+      
+      if (data.requiresOnboarding) {
+        // Creator needs to complete Stripe onboarding first
+        showToast('Creator needs to complete payment setup first. They will be notified.', 'info')
+        setPurchaseModal(null)
+        return
+      }
+      
+      if (data.url) {
+        window.location.href = data.url
+      }
     } catch (error) {
-      console.error('Error purchasing idea:', error)
-      showToast('Failed to purchase idea', 'error')
+      console.error('Error creating purchase session:', error)
+      showToast(error instanceof Error ? error.message : 'Failed to start purchase process', 'error')
     } finally {
       setPurchasing(false)
     }
@@ -356,6 +373,9 @@ export function IdeaFeed() {
                     <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${ownershipBadge.className}`}>
                       <OwnershipIcon className="w-3 h-3 mr-1" />
                       {ownershipBadge.text}
+                      {idea.ownership_mode === 'forsale' && (
+                        <span className="ml-1 text-xs">$50</span>
+                      )}
                     </span>
                   </div>
 
@@ -462,7 +482,7 @@ export function IdeaFeed() {
                                 className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 text-green-400 py-2 px-3 rounded-lg transition-all duration-300 border border-green-500/30 hover:border-green-400/50 flex items-center justify-center space-x-2 text-sm"
                               >
                                 <ShoppingCart className="w-4 h-4" />
-                                <span>Purchase Idea</span>
+                                <span>Purchase for $50</span>
                               </button>
                             )}
 
@@ -515,21 +535,41 @@ export function IdeaFeed() {
               
               <h3 className="text-xl font-bold text-white mb-2">Purchase Idea</h3>
               <p className="text-gray-400 mb-6">
-                Are you sure you want to purchase "{purchaseModal.title}"? This will transfer full ownership to you.
+                Purchase "{purchaseModal.title}" for $50. The creator will receive $45 (90%) and the platform keeps $5 (10%) as a service fee.
               </p>
 
               <div className="bg-gray-700/50 rounded-lg p-4 mb-6">
-                <div className="flex justify-between items-center text-sm">
+                <div className="flex justify-between items-center text-sm mb-2">
                   <span className="text-gray-400">Idea:</span>
                   <span className="text-white font-medium">{purchaseModal.title}</span>
                 </div>
-                <div className="flex justify-between items-center text-sm mt-2">
+                <div className="flex justify-between items-center text-sm mb-2">
                   <span className="text-gray-400">Creator:</span>
                   <span className="text-white">{purchaseModal.author.username || 'Anonymous'}</span>
                 </div>
-                <div className="flex justify-between items-center text-sm mt-2">
-                  <span className="text-gray-400">Ownership:</span>
-                  <span className="text-green-400">Full Rights Transfer</span>
+                <div className="flex justify-between items-center text-sm mb-2">
+                  <span className="text-gray-400">Total Price:</span>
+                  <span className="text-green-400 font-bold">$50.00</span>
+                </div>
+                <div className="flex justify-between items-center text-sm mb-2">
+                  <span className="text-gray-400">Creator Receives:</span>
+                  <span className="text-green-400">$45.00</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400">Platform Fee:</span>
+                  <span className="text-gray-400">$5.00</span>
+                </div>
+              </div>
+
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-6">
+                <div className="flex items-start space-x-2">
+                  <AlertTriangle className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-left">
+                    <p className="text-blue-400 text-sm font-medium">Secure Payment</p>
+                    <p className="text-blue-300/80 text-xs mt-1">
+                      Payment is processed securely through Stripe. The creator receives their payout automatically upon successful payment.
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -554,7 +594,7 @@ export function IdeaFeed() {
                   ) : (
                     <>
                       <Check className="w-4 h-4" />
-                      <span>Confirm Purchase</span>
+                      <span>Purchase Now</span>
                     </>
                   )}
                 </button>

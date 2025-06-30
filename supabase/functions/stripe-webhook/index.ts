@@ -66,15 +66,71 @@ Deno.serve(async (req) => {
         const session = event.data.object as Stripe.Checkout.Session
         const userId = session.metadata?.user_id
         const planType = session.metadata?.plan_type
+        const ideaId = session.metadata?.idea_id
+        const creatorId = session.metadata?.creator_id
+        const investorId = session.metadata?.investor_id
 
         console.log('Processing checkout.session.completed:', {
           sessionId: session.id,
           userId,
           planType,
+          ideaId,
+          creatorId,
+          investorId,
           mode: session.mode,
-          paymentStatus: session.payment_status
+          paymentStatus: session.payment_status,
+          type: session.metadata?.type
         })
 
+        // Handle idea purchase
+        if (session.metadata?.type === 'idea_purchase' && ideaId && creatorId && investorId) {
+          console.log('Processing idea purchase:', {
+            ideaId,
+            creatorId,
+            investorId,
+            paymentStatus: session.payment_status
+          })
+
+          if (session.payment_status === 'paid') {
+            // Transfer ownership of the idea
+            const { error: ideaError } = await supabase
+              .from('ideas')
+              .update({
+                is_nft: true,
+                minted_by: investorId
+              })
+              .eq('id', ideaId)
+
+            if (ideaError) {
+              console.error('Error transferring idea ownership:', ideaError)
+            } else {
+              console.log('✅ Idea ownership transferred successfully')
+            }
+
+            // Record the purchase transaction
+            const { error: orderError } = await supabase
+              .from('stripe_orders')
+              .insert({
+                checkout_session_id: session.id,
+                payment_intent_id: session.payment_intent as string,
+                customer_id: session.customer as string,
+                amount_subtotal: session.amount_subtotal || 0,
+                amount_total: session.amount_total || 0,
+                currency: session.currency || 'usd',
+                payment_status: session.payment_status || 'unpaid',
+                status: 'completed'
+              })
+
+            if (orderError) {
+              console.error('Error recording purchase order:', orderError)
+            } else {
+              console.log('✅ Purchase order recorded successfully')
+            }
+          }
+          break
+        }
+
+        // Handle subscription payments (existing logic)
         if (!userId) {
           console.error('No user_id in session metadata')
           break
@@ -96,7 +152,7 @@ Deno.serve(async (req) => {
           }
 
           // Handle one-time payment (lifetime)
-          if (session.mode === 'payment') {
+          if (session.mode === 'payment' && !session.metadata?.type) {
             console.log('Recording lifetime payment order')
             
             const { error: orderError } = await supabase
@@ -151,6 +207,62 @@ Deno.serve(async (req) => {
           }
         } else {
           console.log('Payment not yet confirmed, status:', session.payment_status)
+        }
+        break
+      }
+
+      case 'account.updated': {
+        const account = event.data.object as Stripe.Account
+        const userId = account.metadata?.supabase_user_id
+
+        console.log('Processing account.updated:', {
+          accountId: account.id,
+          userId,
+          chargesEnabled: account.charges_enabled,
+          payoutsEnabled: account.payouts_enabled
+        })
+
+        if (userId) {
+          // Update payout account status
+          const accountEnabled = account.charges_enabled && account.payouts_enabled
+          
+          const { error } = await supabase
+            .from('stripe_payout_accounts')
+            .update({
+              account_enabled: accountEnabled,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', userId)
+
+          if (error) {
+            console.error('Error updating payout account status:', error)
+          } else {
+            console.log('✅ Payout account status updated:', accountEnabled)
+          }
+        }
+        break
+      }
+
+      case 'payment_intent.succeeded': {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent
+        const ideaId = paymentIntent.metadata?.idea_id
+        const creatorId = paymentIntent.metadata?.creator_id
+        const investorId = paymentIntent.metadata?.investor_id
+
+        console.log('Processing payment_intent.succeeded:', {
+          paymentIntentId: paymentIntent.id,
+          ideaId,
+          creatorId,
+          investorId,
+          amount: paymentIntent.amount,
+          applicationFeeAmount: paymentIntent.application_fee_amount
+        })
+
+        if (ideaId && creatorId && investorId) {
+          console.log('✅ Idea purchase payment completed successfully')
+          
+          // The ownership transfer is already handled in checkout.session.completed
+          // This is just for logging/confirmation
         }
         break
       }
