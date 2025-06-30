@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
         })
     }
 
-    // Get or create creator's Stripe Connect account
+    // Check if creator has a payout account
     let { data: creatorAccount } = await supabase
       .from('stripe_payout_accounts')
       .select('*')
@@ -99,62 +99,82 @@ Deno.serve(async (req) => {
     let stripeAccountId = creatorAccount?.stripe_account_id
 
     if (!stripeAccountId || !creatorAccount?.account_enabled) {
-      // Create Stripe Connect Express account for creator
-      const account = await stripe.accounts.create({
-        type: 'express',
-        country: 'US', // Default to US, should be configurable
-        email: idea.author.email,
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
-        business_type: 'individual',
-        metadata: {
-          supabase_user_id: idea.created_by,
-        },
-      })
+      try {
+        // Try to create Stripe Connect Express account for creator
+        const account = await stripe.accounts.create({
+          type: 'express',
+          country: 'US', // Default to US, should be configurable
+          email: idea.author.email,
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true },
+          },
+          business_type: 'individual',
+          metadata: {
+            supabase_user_id: idea.created_by,
+          },
+        })
 
-      stripeAccountId = account.id
+        stripeAccountId = account.id
 
-      // Save or update payout account
-      if (creatorAccount) {
-        await supabase
-          .from('stripe_payout_accounts')
-          .update({
-            stripe_account_id: stripeAccountId,
-            account_enabled: false,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', idea.created_by)
-      } else {
-        await supabase
-          .from('stripe_payout_accounts')
-          .insert({
-            user_id: idea.created_by,
-            stripe_account_id: stripeAccountId,
-            account_enabled: false,
-          })
-      }
-
-      // Create account link for onboarding
-      const accountLink = await stripe.accountLinks.create({
-        account: stripeAccountId,
-        refresh_url: `${req.headers.get('origin')}/profile?refresh=true`,
-        return_url: `${req.headers.get('origin')}/profile?setup=complete`,
-        type: 'account_onboarding',
-      })
-
-      return new Response(
-        JSON.stringify({ 
-          requiresOnboarding: true,
-          onboardingUrl: accountLink.url,
-          message: 'Creator needs to complete Stripe onboarding first'
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
+        // Save or update payout account
+        if (creatorAccount) {
+          await supabase
+            .from('stripe_payout_accounts')
+            .update({
+              stripe_account_id: stripeAccountId,
+              account_enabled: false,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', idea.created_by)
+        } else {
+          await supabase
+            .from('stripe_payout_accounts')
+            .insert({
+              user_id: idea.created_by,
+              stripe_account_id: stripeAccountId,
+              account_enabled: false,
+            })
         }
-      )
+
+        // Create account link for onboarding
+        const accountLink = await stripe.accountLinks.create({
+          account: stripeAccountId,
+          refresh_url: `${req.headers.get('origin')}/profile?refresh=true`,
+          return_url: `${req.headers.get('origin')}/profile?setup=complete`,
+          type: 'account_onboarding',
+        })
+
+        return new Response(
+          JSON.stringify({ 
+            requiresOnboarding: true,
+            onboardingUrl: accountLink.url,
+            message: 'Creator needs to complete Stripe onboarding first'
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          }
+        )
+      } catch (stripeError) {
+        // Handle Stripe Connect not enabled error
+        if (stripeError.message && stripeError.message.includes('Connect')) {
+          return new Response(
+            JSON.stringify({ 
+              error: 'STRIPE_CONNECT_NOT_ENABLED',
+              message: 'Payment processing is temporarily unavailable. The platform administrator needs to enable Stripe Connect to process creator payouts.',
+              userMessage: 'Payment processing is currently being set up. Please try again later or contact support.'
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 503, // Service Unavailable
+            }
+          )
+        }
+        
+        // Re-throw other Stripe errors
+        throw stripeError
+      }
     }
 
     // Calculate platform fee (10%)
