@@ -200,25 +200,9 @@ export function LandingCarousel() {
   const cta = getCallToAction()
 
   return (
-    <div className="relative space-y-8">
-      {/* Bolt Challenge Badge - Positioned in top-right */}
-      <div className="absolute top-0 right-0 z-20">
-        <a 
-          href="https://bolt.new" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="block transition-transform duration-300 hover:scale-105"
-        >
-          <img 
-            src="/black_circle_360x360.png" 
-            alt="Powered by Bolt" 
-            className="w-16 h-16 md:w-20 md:h-20 drop-shadow-lg hover:drop-shadow-xl transition-all duration-300"
-          />
-        </a>
-      </div>
-
+    <div className="space-y-8">
       {/* Header */}
-      <div className="text-center mb-12 pt-8">
+      <div className="text-center mb-12">
         <h2 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent mb-4">
           Discover Amazing Ideas
         </h2>

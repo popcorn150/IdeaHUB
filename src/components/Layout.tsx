@@ -111,6 +111,20 @@ export function Layout({ children }: LayoutProps) {
                     </button>
                   )}
 
+                  {/* Bolt Badge */}
+                  <a 
+                    href="https://bolt.new" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block transition-transform duration-300 hover:scale-105"
+                  >
+                    <img 
+                      src="/black_circle_360x360.png" 
+                      alt="Powered by Bolt" 
+                      className="w-10 h-10 drop-shadow-lg hover:drop-shadow-xl transition-all duration-300"
+                    />
+                  </a>
+
                   <span className="text-gray-300 hidden lg:block">
                     Hey, {profile?.username || 'User'}!
                   </span>
@@ -123,12 +137,21 @@ export function Layout({ children }: LayoutProps) {
                   </button>
                 </div>
               ) : (
-                <Link
-                  to="/auth"
-                  className="bg-gradient-to-r from-cyan-500 to-purple-600 text-white px-6 py-2 rounded-lg hover:shadow-lg hover:shadow-cyan-400/25 transition-all duration-300"
-                >
-                  Sign In
-                </Link>
+                <div className="flex items-center space-x-4">
+                  {/* Bolt Badge */}
+                  <a 
+                    href="https://bolt.new" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block transition-transform duration-300 hover:scale-105"
+                  >
+                    <img 
+                      src="/black_circle_360x360.png" 
+                      alt="Powered by Bolt" 
+                      className="w-10 h-10 drop-shadow-lg hover:drop-shadow-xl transition-all duration-300"
+                    />
+                  </a>
+                </div>
               )}
             </div>
 
