@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
-import { Eye, EyeOff, Star, Tag, Calendar, Shield, ShoppingCart, Check, X, Heart, MessageCircle, GitBranch, DollarSign, Handshake, Users, AlertTriangle } from 'lucide-react'
+import { Eye, EyeOff, Star, Tag, Calendar, Shield, ShoppingCart, Check, X, Heart, MessageCircle, GitBranch, DollarSign, Handshake, Users, AlertTriangle, ExternalLink } from 'lucide-react'
 import { IdeaDetail } from './IdeaDetail'
 import { RemixModal } from './RemixModal'
 import { PartnershipModal } from './PartnershipModal'
@@ -29,6 +29,7 @@ export function IdeaFeed() {
   const [partnershipModal, setPartnershipModal] = useState<IdeaWithAuthor | null>(null)
   const [remixModal, setRemixModal] = useState<IdeaWithAuthor | null>(null)
   const [purchasing, setPurchasing] = useState(false)
+  const [onboardingModal, setOnboardingModal] = useState<{ idea: IdeaWithAuthor; onboardingUrl: string } | null>(null)
   const [filters, setFilters] = useState({
     sortBy: 'newest' as 'newest' | 'oldest',
     nftStatus: 'all' as 'all' | 'minted' | 'not_minted',
@@ -182,8 +183,11 @@ export function IdeaFeed() {
       }
       
       if (data.requiresOnboarding) {
-        // Creator needs to complete Stripe onboarding first
-        showToast('Creator needs to complete payment setup first. They will be notified.', 'info')
+        // Show onboarding modal instead of just a toast
+        setOnboardingModal({
+          idea,
+          onboardingUrl: data.onboardingUrl
+        })
         setPurchaseModal(null)
         return
       }
@@ -521,6 +525,61 @@ export function IdeaFeed() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Creator Onboarding Modal */}
+      {onboardingModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-800 rounded-2xl max-w-md w-full p-6">
+            <div className="text-center">
+              <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                <AlertTriangle className="w-8 h-8 text-white" />
+              </div>
+              
+              <h3 className="text-xl font-bold text-white mb-2">Creator Setup Required</h3>
+              <p className="text-gray-400 mb-6">
+                <span className="text-cyan-400">@{onboardingModal.idea.author.username}</span> needs to complete their payment setup to receive funds. This is a one-time process.
+              </p>
+
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-6">
+                <div className="flex items-start space-x-3">
+                  <AlertTriangle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-left">
+                    <p className="text-blue-400 font-medium text-sm">What happens next?</p>
+                    <ul className="text-blue-300/80 text-sm mt-1 space-y-1">
+                      <li>• Creator completes Stripe setup (2-3 minutes)</li>
+                      <li>• You can then purchase this idea instantly</li>
+                      <li>• Creator receives 90% ($45), platform keeps 10% ($5)</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <a
+                  href={onboardingModal.onboardingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 text-white py-3 px-4 rounded-lg hover:shadow-lg hover:shadow-blue-400/25 transition-all duration-300 flex items-center justify-center space-x-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Complete Creator Setup</span>
+                </a>
+                
+                <button
+                  onClick={() => setOnboardingModal(null)}
+                  className="w-full bg-gray-600 hover:bg-gray-700 text-white py-3 px-4 rounded-lg transition-colors duration-300"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <p className="text-gray-500 text-xs mt-4">
+                This setup is required by Stripe for secure payments and is only needed once per creator.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
