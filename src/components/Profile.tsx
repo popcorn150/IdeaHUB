@@ -3,10 +3,11 @@ import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { supabase } from '../lib/supabase'
 import { Navigate, useSearchParams } from 'react-router-dom'
-import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw, AlertCircle, Camera, Upload, Search, Trash2, Sparkles, DollarSign } from 'lucide-react'
+import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw, AlertCircle, Camera, Upload, Search, Trash2, Sparkles, DollarSign, Wallet, BarChart3 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { EditIdeaModal } from './EditIdeaModal'
 import { DeleteConfirmModal } from './DeleteConfirmModal'
+import { CreatorWallet } from './CreatorWallet'
 import type { Idea, User } from '../lib/types'
 
 interface IdeaWithMintedUser extends Idea {
@@ -29,6 +30,7 @@ export function Profile() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [editModal, setEditModal] = useState<IdeaWithMintedUser | null>(null)
   const [deleteModal, setDeleteModal] = useState<IdeaWithMintedUser | null>(null)
+  const [activeTab, setActiveTab] = useState<'ideas' | 'wallet'>('ideas')
   const [profileData, setProfileData] = useState({
     username: '',
     bio: '',
@@ -593,257 +595,292 @@ export function Profile() {
         </div>
       </div>
 
-      {/* Purchased Ideas Section - For Investors */}
-      {profile.role === 'investor' && ownedIdeas.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center space-x-2">
-            <ShoppingCart className="w-6 h-6 text-green-400" />
-            <span>Ideas Purchased</span>
-            <span className="text-sm text-gray-400 font-normal">({ownedIdeas.length})</span>
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {ownedIdeas.map((idea) => (
-              <div
-                key={idea.id}
-                className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-green-500/30 hover:border-green-400/50 transition-all duration-300 overflow-hidden group"
-              >
-                {idea.image && (
-                  <div className="aspect-video overflow-hidden">
-                    <img
-                      src={idea.image}
-                      alt={idea.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                )}
-                
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-xl font-semibold text-white group-hover:text-green-400 transition-colors duration-300">
-                      {idea.title}
-                    </h3>
-                    <div className="flex items-center space-x-2">
-                      <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-1 rounded-md">
-                        <Star className="w-4 h-4 text-white" />
-                      </div>
-                      <div className="bg-green-500/20 p-1 rounded-md">
-                        <DollarSign className="w-4 h-4 text-green-400" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mb-3">
-                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-500/20 text-green-300 border border-green-500/30">
-                      <ShoppingCart className="w-3 h-3 mr-1" />
-                      Purchased for $50
-                    </span>
-                  </div>
-
-                  <p className="text-gray-300 mb-4 line-clamp-3">
-                    {idea.description}
-                  </p>
-
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {idea.tags?.slice(0, 3).map((tag, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                      >
-                        <Tag className="w-3 h-3 mr-1" />
-                        {tag}
-                      </span>
-                    ))}
-                    {idea.tags && idea.tags.length > 3 && (
-                      <span className="text-xs text-gray-400">
-                        +{idea.tags.length - 3} more
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm text-gray-400">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>{formatDate(idea.created_at)}</span>
-                    </div>
-                    <span className="text-green-400 text-xs font-medium">OWNED</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Tab Navigation - Only for creators */}
+      {profile?.role === 'creator' && (
+        <div className="flex space-x-1 bg-gray-800/50 rounded-lg p-1 mb-6">
+          <button
+            onClick={() => setActiveTab('ideas')}
+            className={`flex-1 py-2 px-4 rounded-md transition-all duration-300 flex items-center justify-center space-x-2 ${
+              activeTab === 'ideas'
+                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>My Ideas</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('wallet')}
+            className={`flex-1 py-2 px-4 rounded-md transition-all duration-300 flex items-center justify-center space-x-2 ${
+              activeTab === 'wallet'
+                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Wallet className="w-4 h-4" />
+            <span>Wallet</span>
+          </button>
         </div>
       )}
 
-      {/* Created Ideas Grid - Only show for creators */}
-      {profile?.role === 'creator' && (
-        <div>
-          <h2 className="text-2xl font-bold text-white mb-6">My Created Ideas</h2>
-          
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="bg-gray-800/50 rounded-xl p-6 animate-pulse">
-                  <div className="h-4 bg-gray-700 rounded w-3/4 mb-4"></div>
-                  <div className="space-y-2">
-                    <div className="h-3 bg-gray-700 rounded"></div>
-                    <div className="h-3 bg-gray-700 rounded w-5/6"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : ideas.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {ideas.map((idea) => (
-                <div
-                  key={idea.id}
-                  className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 hover:border-cyan-500/30 transition-all duration-300 overflow-hidden group"
-                >
-                  {idea.image && (
-                    <div className="aspect-video overflow-hidden">
-                      <img
-                        src={idea.image}
-                        alt={idea.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                  )}
-                  
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <h3 className="text-xl font-semibold text-white group-hover:text-cyan-400 transition-colors duration-300">
-                        {idea.title}
-                      </h3>
-                      <div className="flex items-center space-x-2">
-                        {idea.is_nft && (
-                          <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-1 rounded-md">
+      {/* Tab Content */}
+      {profile?.role === 'creator' && activeTab === 'wallet' ? (
+        <CreatorWallet />
+      ) : (
+        <>
+          {/* Purchased Ideas Section - For Investors */}
+          {profile.role === 'investor' && ownedIdeas.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-white mb-6 flex items-center space-x-2">
+                <ShoppingCart className="w-6 h-6 text-green-400" />
+                <span>Ideas Purchased</span>
+                <span className="text-sm text-gray-400 font-normal">({ownedIdeas.length})</span>
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {ownedIdeas.map((idea) => (
+                  <div
+                    key={idea.id}
+                    className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-green-500/30 hover:border-green-400/50 transition-all duration-300 overflow-hidden group"
+                  >
+                    {idea.image && (
+                      <div className="aspect-video overflow-hidden">
+                        <img
+                          src={idea.image}
+                          alt={idea.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="text-xl font-semibold text-white group-hover:text-green-400 transition-colors duration-300">
+                          {idea.title}
+                        </h3>
+                        <div className="flex items-center space-x-2">
+                          <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-1 rounded-md">
                             <Star className="w-4 h-4 text-white" />
                           </div>
-                        )}
-                        {idea.is_blurred && (
-                          <div className="bg-orange-500/20 p-1 rounded-md">
-                            <Shield className="w-4 h-4 text-orange-400" />
-                          </div>
-                        )}
-                        {idea.minted_by && idea.minted_by !== user.id && (
                           <div className="bg-green-500/20 p-1 rounded-md">
                             <DollarSign className="w-4 h-4 text-green-400" />
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
 
-                    {idea.minted_by && idea.minted_by !== user.id && (
                       <div className="mb-3">
-                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 border border-green-500/30">
-                          <DollarSign className="w-3 h-3 mr-1" />
-                          Sold for $50 (You earned $45)
+                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-500/20 text-green-300 border border-green-500/30">
+                          <ShoppingCart className="w-3 h-3 mr-1" />
+                          Purchased for $50
                         </span>
                       </div>
-                    )}
 
-                    <p className="text-gray-300 mb-4 line-clamp-3">
-                      {idea.description}
-                    </p>
+                      <p className="text-gray-300 mb-4 line-clamp-3">
+                        {idea.description}
+                      </p>
 
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {idea.tags?.slice(0, 3).map((tag, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                        >
-                          <Tag className="w-3 h-3 mr-1" />
-                          {tag}
-                        </span>
-                      ))}
-                      {idea.tags && idea.tags.length > 3 && (
-                        <span className="text-xs text-gray-400">
-                          +{idea.tags.length - 3} more
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Edit and Delete buttons for own ideas */}
-                    {!idea.minted_by || idea.minted_by === user.id ? (
-                      <div className="grid grid-cols-2 gap-2 mb-4">
-                        <button
-                          onClick={() => setEditModal(idea)}
-                          className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
-                        >
-                          <Edit className="w-4 h-4" />
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          onClick={() => setDeleteModal(idea)}
-                          className="bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-3 rounded-lg transition-all duration-300 border border-red-500/30 hover:border-red-400/50 flex items-center justify-center space-x-2 text-sm"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <span>Delete</span>
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="mb-4 p-2 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
-                        <span className="text-green-400 text-sm font-medium">✅ Sold - Cannot Edit</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between text-sm text-gray-400">
-                      <div className="flex items-center space-x-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>{formatDate(idea.created_at)}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {idea.is_nft && (
-                          <span className="text-purple-400 text-xs">NFT</span>
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {idea.tags?.slice(0, 3).map((tag, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                          >
+                            <Tag className="w-3 h-3 mr-1" />
+                            {tag}
+                          </span>
+                        ))}
+                        {idea.tags && idea.tags.length > 3 && (
+                          <span className="text-xs text-gray-400">
+                            +{idea.tags.length - 3} more
+                          </span>
                         )}
-                        {idea.is_blurred && (
-                          <span className="text-orange-400 text-xs">Protected</span>
-                        )}
-                        {idea.minted_by && idea.minted_by !== user.id && (
-                          <span className="text-green-400 text-xs">SOLD</span>
-                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm text-gray-400">
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="w-4 h-4" />
+                          <span>{formatDate(idea.created_at)}</span>
+                        </div>
+                        <span className="text-green-400 text-xs font-medium">OWNED</span>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="bg-gray-800/50 rounded-xl p-8">
-                <h3 className="text-xl font-semibold text-gray-300 mb-2">No ideas yet</h3>
-                <p className="text-gray-400 mb-4">Start sharing your innovative ideas with the world!</p>
-                <Link
-                  to="/upload"
-                  className="inline-flex items-center space-x-2 bg-gradient-to-r from-cyan-500 to-purple-600 text-white px-6 py-3 rounded-lg hover:shadow-lg hover:shadow-cyan-400/25 transition-all duration-300"
-                >
-                  <Star className="w-4 h-4" />
-                  <span>Upload Your First Idea</span>
-                </Link>
+                ))}
               </div>
             </div>
           )}
-        </div>
-      )}
 
-      {/* Investor-specific section */}
-      {profile?.role === 'investor' && ownedIdeas.length === 0 && (
-        <div>
-          <h2 className="text-2xl font-bold text-white mb-6">Discover Ideas</h2>
-          <div className="text-center py-12">
-            <div className="bg-gray-800/50 rounded-xl p-8">
-              <h3 className="text-xl font-semibold text-gray-300 mb-2">Ready to discover amazing ideas?</h3>
-              <p className="text-gray-400 mb-4">Explore innovative concepts from talented creators and find your next investment opportunity!</p>
-              <Link
-                to="/"
-                className="inline-flex items-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg hover:shadow-lg hover:shadow-green-400/25 transition-all duration-300"
-              >
-                <Search className="w-4 h-4" />
-                <span>Explore Ideas</span>
-              </Link>
+          {/* Created Ideas Grid - Only show for creators */}
+          {profile?.role === 'creator' && (
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-6">My Created Ideas</h2>
+              
+              {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="bg-gray-800/50 rounded-xl p-6 animate-pulse">
+                      <div className="h-4 bg-gray-700 rounded w-3/4 mb-4"></div>
+                      <div className="space-y-2">
+                        <div className="h-3 bg-gray-700 rounded"></div>
+                        <div className="h-3 bg-gray-700 rounded w-5/6"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : ideas.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {ideas.map((idea) => (
+                    <div
+                      key={idea.id}
+                      className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 hover:border-cyan-500/30 transition-all duration-300 overflow-hidden group"
+                    >
+                      {idea.image && (
+                        <div className="aspect-video overflow-hidden">
+                          <img
+                            src={idea.image}
+                            alt={idea.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        </div>
+                      )}
+                      
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-3">
+                          <h3 className="text-xl font-semibold text-white group-hover:text-cyan-400 transition-colors duration-300">
+                            {idea.title}
+                          </h3>
+                          <div className="flex items-center space-x-2">
+                            {idea.is_nft && (
+                              <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-1 rounded-md">
+                                <Star className="w-4 h-4 text-white" />
+                              </div>
+                            )}
+                            {idea.is_blurred && (
+                              <div className="bg-orange-500/20 p-1 rounded-md">
+                                <Shield className="w-4 h-4 text-orange-400" />
+                              </div>
+                            )}
+                            {idea.minted_by && idea.minted_by !== user.id && (
+                              <div className="bg-green-500/20 p-1 rounded-md">
+                                <DollarSign className="w-4 h-4 text-green-400" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {idea.minted_by && idea.minted_by !== user.id && (
+                          <div className="mb-3">
+                            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 border border-green-500/30">
+                              <DollarSign className="w-3 h-3 mr-1" />
+                              Sold for $50 (You earned $45)
+                            </span>
+                          </div>
+                        )}
+
+                        <p className="text-gray-300 mb-4 line-clamp-3">
+                          {idea.description}
+                        </p>
+
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {idea.tags?.slice(0, 3).map((tag, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                            >
+                              <Tag className="w-3 h-3 mr-1" />
+                              {tag}
+                            </span>
+                          ))}
+                          {idea.tags && idea.tags.length > 3 && (
+                            <span className="text-xs text-gray-400">
+                              +{idea.tags.length - 3} more
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Edit and Delete buttons for own ideas */}
+                        {!idea.minted_by || idea.minted_by === user.id ? (
+                          <div className="grid grid-cols-2 gap-2 mb-4">
+                            <button
+                              onClick={() => setEditModal(idea)}
+                              className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
+                            >
+                              <Edit className="w-4 h-4" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              onClick={() => setDeleteModal(idea)}
+                              className="bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-3 rounded-lg transition-all duration-300 border border-red-500/30 hover:border-red-400/50 flex items-center justify-center space-x-2 text-sm"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="mb-4 p-2 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
+                            <span className="text-green-400 text-sm font-medium">✅ Sold - Cannot Edit</span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between text-sm text-gray-400">
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>{formatDate(idea.created_at)}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {idea.is_nft && (
+                              <span className="text-purple-400 text-xs">NFT</span>
+                            )}
+                            {idea.is_blurred && (
+                              <span className="text-orange-400 text-xs">Protected</span>
+                            )}
+                            {idea.minted_by && idea.minted_by !== user.id && (
+                              <span className="text-green-400 text-xs">SOLD</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="bg-gray-800/50 rounded-xl p-8">
+                    <h3 className="text-xl font-semibold text-gray-300 mb-2">No ideas yet</h3>
+                    <p className="text-gray-400 mb-4">Start sharing your innovative ideas with the world!</p>
+                    <Link
+                      to="/upload"
+                      className="inline-flex items-center space-x-2 bg-gradient-to-r from-cyan-500 to-purple-600 text-white px-6 py-3 rounded-lg hover:shadow-lg hover:shadow-cyan-400/25 transition-all duration-300"
+                    >
+                      <Star className="w-4 h-4" />
+                      <span>Upload Your First Idea</span>
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        </div>
+          )}
+
+          {/* Investor-specific section */}
+          {profile?.role === 'investor' && ownedIdeas.length === 0 && (
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-6">Discover Ideas</h2>
+              <div className="text-center py-12">
+                <div className="bg-gray-800/50 rounded-xl p-8">
+                  <h3 className="text-xl font-semibold text-gray-300 mb-2">Ready to discover amazing ideas?</h3>
+                  <p className="text-gray-400 mb-4">Explore innovative concepts from talented creators and find your next investment opportunity!</p>
+                  <Link
+                    to="/"
+                    className="inline-flex items-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg hover:shadow-lg hover:shadow-green-400/25 transition-all duration-300"
+                  >
+                    <Search className="w-4 h-4" />
+                    <span>Explore Ideas</span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Edit and Delete Modals */}
