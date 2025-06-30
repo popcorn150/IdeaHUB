@@ -3,8 +3,10 @@ import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { supabase } from '../lib/supabase'
 import { Navigate, useSearchParams } from 'react-router-dom'
-import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw, AlertCircle, Camera, Upload, Search } from 'lucide-react'
+import { Edit, Star, Eye, EyeOff, Calendar, Tag, Shield, ShoppingCart, CheckCircle, Crown, RefreshCw, AlertCircle, Camera, Upload, Search, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { EditIdeaModal } from './EditIdeaModal'
+import { DeleteConfirmModal } from './DeleteConfirmModal'
 import type { Idea, User } from '../lib/types'
 
 interface IdeaWithMintedUser extends Idea {
@@ -22,6 +24,8 @@ export function Profile() {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [webhookStatus, setWebhookStatus] = useState<'checking' | 'working' | 'failed' | null>(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [editModal, setEditModal] = useState<IdeaWithMintedUser | null>(null)
+  const [deleteModal, setDeleteModal] = useState<IdeaWithMintedUser | null>(null)
   const [profileData, setProfileData] = useState({
     username: '',
     bio: '',
@@ -646,6 +650,24 @@ export function Profile() {
                       )}
                     </div>
 
+                    {/* Edit and Delete buttons for own ideas */}
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                      <button
+                        onClick={() => setEditModal(idea)}
+                        className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => setDeleteModal(idea)}
+                        className="bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-3 rounded-lg transition-all duration-300 border border-red-500/30 hover:border-red-400/50 flex items-center justify-center space-x-2 text-sm"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+
                     <div className="flex items-center justify-between text-sm text-gray-400">
                       <div className="flex items-center space-x-1">
                         <Calendar className="w-4 h-4" />
@@ -703,6 +725,23 @@ export function Profile() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Edit and Delete Modals */}
+      {editModal && (
+        <EditIdeaModal
+          idea={editModal}
+          onClose={() => setEditModal(null)}
+          onSuccess={fetchUserIdeas}
+        />
+      )}
+
+      {deleteModal && (
+        <DeleteConfirmModal
+          idea={deleteModal}
+          onClose={() => setDeleteModal(null)}
+          onSuccess={fetchUserIdeas}
+        />
       )}
     </div>
   )

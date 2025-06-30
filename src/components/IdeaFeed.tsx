@@ -2,11 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
-import { Eye, EyeOff, Star, Tag, Calendar, Shield, ShoppingCart, Check, X, Heart, MessageCircle, GitBranch, Edit, Trash2, DollarSign, Handshake, Users } from 'lucide-react'
+import { Eye, EyeOff, Star, Tag, Calendar, Shield, ShoppingCart, Check, X, Heart, MessageCircle, GitBranch, DollarSign, Handshake, Users } from 'lucide-react'
 import { IdeaDetail } from './IdeaDetail'
 import { RemixModal } from './RemixModal'
-import { EditIdeaModal } from './EditIdeaModal'
-import { DeleteConfirmModal } from './DeleteConfirmModal'
 import { PartnershipModal } from './PartnershipModal'
 import { FeedFilters } from './FeedFilters'
 import { LandingCarousel } from './LandingCarousel'
@@ -30,8 +28,6 @@ export function IdeaFeed() {
   const [purchaseModal, setPurchaseModal] = useState<IdeaWithAuthor | null>(null)
   const [partnershipModal, setPartnershipModal] = useState<IdeaWithAuthor | null>(null)
   const [remixModal, setRemixModal] = useState<IdeaWithAuthor | null>(null)
-  const [editModal, setEditModal] = useState<IdeaWithAuthor | null>(null)
-  const [deleteModal, setDeleteModal] = useState<IdeaWithAuthor | null>(null)
   const [purchasing, setPurchasing] = useState(false)
   const [filters, setFilters] = useState({
     sortBy: 'newest' as 'newest' | 'oldest',
@@ -153,10 +149,6 @@ export function IdeaFeed() {
   // Only investors can request partnerships
   const canRequestPartnership = (idea: IdeaWithAuthor) => {
     return user && profile?.role === 'investor' && idea.ownership_mode === 'partnership' && idea.created_by !== user.id
-  }
-
-  const canEditIdea = (idea: IdeaWithAuthor) => {
-    return user && idea.created_by === user.id
   }
 
   // Only creators can remix ideas (and not their own)
@@ -447,27 +439,8 @@ export function IdeaFeed() {
                       )}
                     </button>
 
-                    {/* Action Buttons - Different for creators vs investors */}
-                    {canEditIdea(idea) ? (
-                      // Own ideas - show edit/delete
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => setEditModal(idea)}
-                          className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
-                        >
-                          <Edit className="w-4 h-4" />
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          onClick={() => setDeleteModal(idea)}
-                          className="bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-3 rounded-lg transition-all duration-300 border border-red-500/30 hover:border-red-400/50 flex items-center justify-center space-x-2 text-sm"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <span>Delete</span>
-                        </button>
-                      </div>
-                    ) : (
-                      // Other people's ideas
+                    {/* Action Buttons - Only for other people's ideas */}
+                    {idea.created_by !== user?.id && (
                       <div className="space-y-2">
                         {/* Creators can only remix */}
                         {profile?.role === 'creator' && canRemixIdea(idea) && (
@@ -506,7 +479,7 @@ export function IdeaFeed() {
                         )}
 
                         {/* Showcase only message */}
-                        {idea.ownership_mode === 'showcase' && idea.created_by !== user?.id && (
+                        {idea.ownership_mode === 'showcase' && (
                           <div className="text-center py-2 text-gray-500 text-sm">
                             {profile?.role === 'creator' 
                               ? 'Showcase only - available for inspiration and remixing'
@@ -622,22 +595,6 @@ export function IdeaFeed() {
         <RemixModal
           originalIdea={remixModal}
           onClose={() => setRemixModal(null)}
-          onSuccess={fetchIdeas}
-        />
-      )}
-
-      {editModal && (
-        <EditIdeaModal
-          idea={editModal}
-          onClose={() => setEditModal(null)}
-          onSuccess={fetchIdeas}
-        />
-      )}
-
-      {deleteModal && (
-        <DeleteConfirmModal
-          idea={deleteModal}
-          onClose={() => setDeleteModal(null)}
           onSuccess={fetchIdeas}
         />
       )}
