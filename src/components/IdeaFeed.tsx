@@ -233,20 +233,23 @@ export function IdeaFeed() {
     return !idea.is_blurred || idea.created_by === user?.id || idea.minted_by === user?.id
   }
 
+  // Only investors can purchase ideas
   const canPurchaseIdea = (idea: IdeaWithAuthor) => {
-    return user && idea.ownership_mode === 'forsale' && !idea.minted_by && idea.created_by !== user.id && !idea.id.startsWith('dummy-')
+    return user && profile?.role === 'investor' && idea.ownership_mode === 'forsale' && !idea.minted_by && idea.created_by !== user.id && !idea.id.startsWith('dummy-')
   }
 
+  // Only investors can request partnerships
   const canRequestPartnership = (idea: IdeaWithAuthor) => {
-    return user && idea.ownership_mode === 'partnership' && idea.created_by !== user.id && !idea.id.startsWith('dummy-')
+    return user && profile?.role === 'investor' && idea.ownership_mode === 'partnership' && idea.created_by !== user.id && !idea.id.startsWith('dummy-')
   }
 
   const canEditIdea = (idea: IdeaWithAuthor) => {
     return user && idea.created_by === user.id && !idea.id.startsWith('dummy-')
   }
 
+  // Only creators can remix ideas (and not their own)
   const canRemixIdea = (idea: IdeaWithAuthor) => {
-    return user && idea.created_by !== user.id && !idea.id.startsWith('dummy-')
+    return user && profile?.role === 'creator' && idea.created_by !== user.id && !idea.id.startsWith('dummy-')
   }
 
   const handlePurchase = async (idea: IdeaWithAuthor) => {
@@ -524,64 +527,82 @@ export function IdeaFeed() {
                     )}
                   </button>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    {canEditIdea(idea) ? (
-                      <>
+                  {/* Action Buttons - Different for creators vs investors */}
+                  {canEditIdea(idea) ? (
+                    // Own ideas - show edit/delete
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setEditModal(idea)}
+                        className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => setDeleteModal(idea)}
+                        className="bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-3 rounded-lg transition-all duration-300 border border-red-500/30 hover:border-red-400/50 flex items-center justify-center space-x-2 text-sm"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  ) : (
+                    // Other people's ideas
+                    <div className="space-y-2">
+                      {/* Creators can only remix */}
+                      {profile?.role === 'creator' && canRemixIdea(idea) && (
                         <button
-                          onClick={() => setEditModal(idea)}
-                          className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
+                          onClick={() => idea.id.startsWith('dummy-') ? showToast('This is demo data. Upload real ideas to remix!', 'info') : setRemixModal(idea)}
+                          className="w-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
                         >
-                          <Edit className="w-4 h-4" />
-                          <span>Edit</span>
+                          <GitBranch className="w-4 h-4" />
+                          <span>Remix This Idea</span>
                         </button>
-                        <button
-                          onClick={() => setDeleteModal(idea)}
-                          className="bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-3 rounded-lg transition-all duration-300 border border-red-500/30 hover:border-red-400/50 flex items-center justify-center space-x-2 text-sm"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <span>Delete</span>
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        {canRemixIdea(idea) && profile?.role === 'creator' && (
-                          <button
-                            onClick={() => idea.id.startsWith('dummy-') ? showToast('This is demo data. Upload real ideas to remix!', 'info') : setRemixModal(idea)}
-                            className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
-                          >
-                            <GitBranch className="w-4 h-4" />
-                            <span>Remix</span>
-                          </button>
-                        )}
+                      )}
 
-                        {canPurchaseIdea(idea) && profile?.role === 'investor' && (
-                          <button
-                            onClick={() => setPurchaseModal(idea)}
-                            className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 text-green-400 py-2 px-3 rounded-lg transition-all duration-300 border border-green-500/30 hover:border-green-400/50 flex items-center justify-center space-x-2 text-sm"
-                          >
-                            <ShoppingCart className="w-4 h-4" />
-                            <span>Buy</span>
-                          </button>
-                        )}
+                      {/* Investors can buy or request partnerships */}
+                      {profile?.role === 'investor' && (
+                        <div className="grid grid-cols-1 gap-2">
+                          {canPurchaseIdea(idea) && (
+                            <button
+                              onClick={() => setPurchaseModal(idea)}
+                              className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 text-green-400 py-2 px-3 rounded-lg transition-all duration-300 border border-green-500/30 hover:border-green-400/50 flex items-center justify-center space-x-2 text-sm"
+                            >
+                              <ShoppingCart className="w-4 h-4" />
+                              <span>Purchase Idea</span>
+                            </button>
+                          )}
 
-                        {canRequestPartnership(idea) && profile?.role === 'investor' && (
-                          <button
-                            onClick={() => idea.id.startsWith('dummy-') ? showToast('This is demo data. Sign up to request real partnerships!', 'info') : setPartnershipModal(idea)}
-                            className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
-                          >
-                            <Handshake className="w-4 h-4" />
-                            <span>Partner</span>
-                          </button>
-                        )}
+                          {canRequestPartnership(idea) && (
+                            <button
+                              onClick={() => idea.id.startsWith('dummy-') ? showToast('This is demo data. Sign up to request real partnerships!', 'info') : setPartnershipModal(idea)}
+                              className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 text-blue-400 py-2 px-3 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50 flex items-center justify-center space-x-2 text-sm"
+                            >
+                              <Handshake className="w-4 h-4" />
+                              <span>Request Partnership</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
 
-                        {idea.ownership_mode === 'showcase' && (
-                          <div className="col-span-2 text-center py-2 text-gray-500 text-sm">
-                            Showcase only - not available for purchase or partnership
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
+                      {/* Showcase only message */}
+                      {idea.ownership_mode === 'showcase' && idea.created_by !== user?.id && (
+                        <div className="text-center py-2 text-gray-500 text-sm">
+                          {profile?.role === 'creator' 
+                            ? 'Showcase only - available for inspiration and remixing'
+                            : 'Showcase only - not available for purchase or partnership'
+                          }
+                        </div>
+                      )}
+
+                      {/* No actions available message for creators on for-sale/partnership ideas */}
+                      {profile?.role === 'creator' && idea.ownership_mode !== 'showcase' && !canRemixIdea(idea) && (
+                        <div className="text-center py-2 text-gray-500 text-sm">
+                          Available for investors only
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

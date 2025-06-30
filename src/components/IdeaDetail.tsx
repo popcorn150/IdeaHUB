@@ -58,12 +58,19 @@ export function IdeaDetail({ idea, onClose, onPurchase, onPartnership, onRemix }
     return !idea.is_blurred || idea.created_by === user?.id || idea.minted_by === user?.id
   }
 
+  // Only investors can purchase ideas
   const canPurchaseIdea = () => {
-    return user && idea.ownership_mode === 'forsale' && !idea.minted_by && idea.created_by !== user.id
+    return user && profile?.role === 'investor' && idea.ownership_mode === 'forsale' && !idea.minted_by && idea.created_by !== user.id
   }
 
+  // Only investors can request partnerships
   const canRequestPartnership = () => {
-    return user && idea.ownership_mode === 'partnership' && idea.created_by !== user.id
+    return user && profile?.role === 'investor' && idea.ownership_mode === 'partnership' && idea.created_by !== user.id
+  }
+
+  // Only creators can remix (and not their own ideas)
+  const canRemixIdea = () => {
+    return user && profile?.role === 'creator' && idea.created_by !== user.id
   }
 
   const getMintedByDisplay = () => {
@@ -328,7 +335,8 @@ export function IdeaDetail({ idea, onClose, onPurchase, onPartnership, onRemix }
               </div>
 
               <div className="flex items-center space-x-3">
-                {onRemix && user && idea.created_by !== user.id && (
+                {/* Only show remix button for creators */}
+                {canRemixIdea() && onRemix && (
                   <button
                     onClick={() => onRemix(idea)}
                     className="flex items-center space-x-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 px-4 py-2 rounded-lg transition-all duration-300 border border-blue-500/30 hover:border-blue-400/50"
@@ -338,6 +346,7 @@ export function IdeaDetail({ idea, onClose, onPurchase, onPartnership, onRemix }
                   </button>
                 )}
 
+                {/* Only show partnership button for investors */}
                 {canRequestPartnership() && onPartnership && (
                   <button
                     onClick={() => onPartnership(idea)}
@@ -348,6 +357,7 @@ export function IdeaDetail({ idea, onClose, onPurchase, onPartnership, onRemix }
                   </button>
                 )}
 
+                {/* Only show purchase button for investors */}
                 {canPurchaseIdea() && onPurchase && (
                   <button
                     onClick={() => onPurchase(idea)}
@@ -358,9 +368,13 @@ export function IdeaDetail({ idea, onClose, onPurchase, onPartnership, onRemix }
                   </button>
                 )}
 
-                {idea.ownership_mode === 'showcase' && (
+                {/* Show appropriate message for showcase ideas */}
+                {idea.ownership_mode === 'showcase' && idea.created_by !== user?.id && (
                   <div className="text-gray-500 text-sm px-4 py-2">
-                    Showcase only - not for sale
+                    {profile?.role === 'creator' 
+                      ? 'Showcase only - available for inspiration'
+                      : 'Showcase only - not for sale'
+                    }
                   </div>
                 )}
               </div>
