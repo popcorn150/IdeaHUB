@@ -20,7 +20,7 @@ type FlowStep = 'nda' | 'payment' | 'message' | 'success'
 const NDA_TEXT = `
 NON-DISCLOSURE AGREEMENT
 
-This Non-Disclosure Agreement ("Agreement") is entered into between the Creator of the idea "${idea?.title || '[Idea Title]'}" ("Disclosing Party") and the undersigned investor ("Receiving Party").
+This Non-Disclosure Agreement ("Agreement") is entered into between the Creator of the idea "[IDEA_TITLE_PLACEHOLDER]" ("Disclosing Party") and the undersigned investor ("Receiving Party").
 
 1. CONFIDENTIAL INFORMATION
 The Disclosing Party may share confidential and proprietary information related to their business idea, including but not limited to:
@@ -255,7 +255,7 @@ export function PartnershipRequestFlow({ idea, onClose, onSuccess }: Partnership
                 </div>
                 <div className="bg-gray-800/50 rounded-lg p-4 max-h-64 overflow-y-auto border border-gray-600/30">
                   <pre className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">
-                    {NDA_TEXT.replace('${idea?.title || \'[Idea Title]\'}', idea.title)}
+                    {NDA_TEXT.replace('[IDEA_TITLE_PLACEHOLDER]', idea.title)}
                   </pre>
                 </div>
               </div>
